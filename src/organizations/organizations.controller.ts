@@ -111,6 +111,8 @@ export class OrganizationsController {
    * Available to members of the organization
    */
   @Get(':id')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.MANAGER)
   @ApiOperation({
     summary: 'Get organization details',
     description:
@@ -137,11 +139,7 @@ export class OrganizationsController {
 
     console.log('organization', organization);
     console.log('user', user);
-    if (organization.auth0OrgId !== user.auth0Id) {
-      throw new BadRequestException(
-        'You do not have access to this organization',
-      );
-    }
+   
 
     return organization;
   }

@@ -4,12 +4,20 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 import { AppModule } from './app.module';
 import { ConfigService } from './config';
+import { createLogger } from './common/services/logger.service';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const logger = createLogger();
+  const app = await NestFactory.create(AppModule, {
+    logger: logger,
+  });
 
   // Get configuration service
   const configService = app.get(ConfigService);
+
+  // Global exception filter
+  app.useGlobalFilters(new HttpExceptionFilter());
 
   // Global validation pipe
   app.useGlobalPipes(
@@ -17,6 +25,16 @@ async function bootstrap() {
       transform: true,
       whitelist: true,
       forbidNonWhitelisted: true,
+      exceptionFactory: (errors) => {
+        // This will be caught by HttpExceptionFilter
+        return new HttpException(
+          {
+            message: 'Validation failed',
+            errors: errors,
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      },
     }),
   );
 
@@ -35,10 +53,10 @@ async function bootstrap() {
 
   // Swagger API Documentation
   const swaggerConfig = new DocumentBuilder()
-    .setTitle('OrderMind POS API')
+    .setTitle('Ordaro POS API')
     .setDescription(
       `
-      OrderMind POS API with keyset (cursor-based) pagination.
+        Ordaro POS API with keyset (cursor-based) pagination.
       
       **Pagination:**
       - Use \`limit\` query parameter (1-100, default: 20)
@@ -77,12 +95,15 @@ async function bootstrap() {
     .addTag('Organizations', 'Organization management')
     .addTag('Branches', 'Branch (restaurant location) management')
     .addTag('Users', 'User invitations and member management')
+    .addTag('Plans', 'Subscription plan management')
+    .addTag('Subscriptions', 'Subscription management')
+    .addTag('Webhooks', 'Webhook event handlers')
     .addTag('Health', 'Health check endpoints')
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api-docs', app, document, {
-    customSiteTitle: 'OrderMind API Docs',
+    customSiteTitle: 'Ordaro API Docs',
     customfavIcon: 'https://nestjs.com/img/logo-small.svg',
     customCss: `
       .swagger-ui .topbar { display: none }
@@ -99,13 +120,16 @@ async function bootstrap() {
   const port = configService.port;
   await app.listen(port);
 
-  console.log(`🚀 Application is running on: http://localhost:${port}`);
-  console.log(`🌍 Environment: ${configService.nodeEnv}`);
-  console.log(`📚 API Prefix: ${apiPrefix || 'none'}`);
-  console.log(`📖 Swagger Docs: http://localhost:${port}/api-docs`);
+  logger.info({
+    port,
+    environment: configService.nodeEnv,
+    apiPrefix: apiPrefix || 'none',
+    swaggerDocs: `http://localhost:${port}/api-docs`,
+  }, '🚀 Application started successfully');
 }
 
 bootstrap().catch((error) => {
-  console.error('❌ Application failed to start:', error);
+  const logger = createLogger();
+  logger.error(error, '❌ Application failed to start');
   process.exit(1);
 });

@@ -36,9 +36,10 @@ model Organization {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  branches    Branch[]
-  users       User[]
-  invitations Invitation[] // Add this line
+  branches      Branch[]
+  users         User[]
+  invitations   Invitation[]
+  customer      Customer?
 
   @@map("organizations")
 }
@@ -56,7 +57,7 @@ model Branch {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   userBranches UserBranch[]
-  invitations  Invitation[] // Add this line
+  invitations  Invitation[] 
   // POS relations: orders, menuItems, inventory, tables, etc.
 
   @@unique([organizationId, name])
@@ -122,4 +123,106 @@ enum InvitationStatus {
   ACCEPTED
   EXPIRED
   REVOKED
+}
+
+// ============================================================================
+// Paystack Subscription System
+// ============================================================================
+
+enum SubscriptionStatus {
+  ACTIVE
+  INACTIVE
+  CANCELLED
+  PAST_DUE
+  TRIALING
+}
+
+enum PlanInterval {
+  DAILY
+  WEEKLY
+  MONTHLY
+  ANNUALLY
+}
+
+model Plan {
+  id              String          @id @default(uuid())
+  paystackPlanCode String         @unique
+  name            String
+  description     String?
+  amount          Int             // Amount in kobo/cents
+  interval        PlanInterval
+  isActive        Boolean         @default(true)
+  features        Json?           // Plan features as JSON
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  subscriptions   Subscription[]
+
+  @@map("plans")
+}
+
+model Customer {
+  id                  String          @id @default(uuid())
+  paystackCustomerCode String         @unique
+  email               String
+  firstName           String?
+  lastName            String?
+  phone               String?
+
+  organizationId      String          @unique
+  organization        Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  authorizations      Authorization[]
+  subscriptions       Subscription[]
+
+  @@map("customers")
+}
+
+model Authorization {
+  id                  String          @id @default(uuid())
+  paystackAuthCode    String          @unique
+  paystackSignature   String          @unique
+  last4               String
+  cardType            String?
+  expMonth            String?
+  expYear             String?
+  bin                 String?
+
+  customerId          String
+  customer            Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  isActive            Boolean         @default(true)
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  @@index([customerId])
+  @@map("authorizations")
+}
+
+model Subscription {
+  id                      String              @id @default(uuid())
+  paystackSubscriptionCode String             @unique
+  paystackEmailToken      String?             @unique
+
+  customerId              String
+  customer                Customer            @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  planId                  String
+  plan                    Plan                @relation(fields: [planId], references: [id])
+
+  status                  SubscriptionStatus
+  currentPeriodStart      DateTime
+  currentPeriodEnd        DateTime
+  cancelAtPeriodEnd        Boolean             @default(false)
+  cancelledAt             DateTime?
+
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+
+  @@index([customerId])
+  @@index([status])
+  @@map("subscriptions")
 }

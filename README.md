@@ -1,4 +1,4 @@
-# OrderMind API
+# Ordaro API
 
 A NestJS-based REST API for order management with secure configuration using dotenvx encryption.
 

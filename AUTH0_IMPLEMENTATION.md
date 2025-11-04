@@ -2,7 +2,7 @@
 
 ## 🎉 Implementation Complete!
 
-This document describes the Auth0 authentication system that has been implemented for the OrderMind POS restaurant chain system.
+This document describes the Auth0 authentication system that has been implemented for the Ordaro POS restaurant chain system.
 
 ## 📋 What Has Been Implemented
 
@@ -112,10 +112,10 @@ Handles all Auth0 Management API operations:
 #### A. Get M2M App Credentials
 
 1. Go to **Auth0 Dashboard → Applications → Applications**
-2. Find `ordermind_api (Test Application)`
+2. Find `ordaro_api (Test Application)`
 3. Copy the **Client Secret**
 4. Go to **Applications → APIs → Auth0 Management API → Machine to Machine Applications**
-5. Find `ordermind_api` and authorize with these permissions:
+5. Find `ordaro_api` and authorize with these permissions:
    - `read:organizations`, `create:organizations`, `update:organizations`
    - `read:organization_members`, `create:organization_members`, `delete:organization_members`
    - `read:organization_member_roles`, `create:organization_member_roles`, `delete:organization_member_roles`

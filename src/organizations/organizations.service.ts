@@ -99,24 +99,7 @@ export class OrganizationsService {
 
     // Now write to your DB
     try {
-      // First, upsert the user to handle existing users
-      await this.prismaService.user.upsert({
-        where: { auth0UserId: userId },
-        create: {
-          auth0UserId: userId,
-          email: userEmail,
-          ...(userName && { name: userName }),
-          role: UserRole.OWNER,
-          organizationId: '', // Will be updated after org creation
-        },
-        update: {
-          ...(userEmail && { email: userEmail }),
-          ...(userName && { name: userName }),
-          role: UserRole.OWNER,
-        },
-      });
-
-      // Then create the organization
+      // Create the organization FIRST (user requires organizationId foreign key)
       const organization = await this.prismaService.organization.create({
         data: {
           auth0OrgId,
@@ -129,10 +112,23 @@ export class OrganizationsService {
         include: { users: true },
       });
 
-      // Update user with organization ID
-      await this.prismaService.user.update({
+      // Then upsert the user with the organization ID
+      // This handles both new users and existing users (who might have logged in before org creation)
+      await this.prismaService.user.upsert({
         where: { auth0UserId: userId },
-        data: { organizationId: organization.id },
+        create: {
+          auth0UserId: userId,
+          email: userEmail,
+          ...(userName && { name: userName }),
+          role: UserRole.OWNER,
+          organizationId: organization.id, // Now we have a valid organization ID
+        },
+        update: {
+          ...(userEmail && { email: userEmail }),
+          ...(userName && { name: userName }),
+          role: UserRole.OWNER,
+          organizationId: organization.id, // Update existing user's organization
+        },
       });
 
       this.logger.log(

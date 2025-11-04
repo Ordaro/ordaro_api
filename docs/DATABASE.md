@@ -1,6 +1,6 @@
 # Database & Prisma Integration Guide
 
-This document outlines the comprehensive Prisma setup for the OrderMind API project, including connection management, best practices, and usage examples.
+This document outlines the comprehensive Prisma setup for the Ordaro API project, including connection management, best practices, and usage examples.
 
 ## Overview
 
@@ -101,10 +101,10 @@ const result = await prismaService.executeTransaction(async (prisma) => {
 
 ```bash
 # Database connection
-DATABASE_URL="postgresql://user:password@localhost:5432/ordermind"
+DATABASE_URL="postgresql://user:password@localhost:5432/ordaro"
 DATABASE_HOST="localhost"
 DATABASE_PORT="5432"
-DATABASE_NAME="ordermind"
+DATABASE_NAME="ordaro"
 DATABASE_USER="user"
 DATABASE_PASSWORD="password"
 ```

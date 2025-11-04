@@ -1,6 +1,6 @@
 # Configuration Management Guide
 
-This guide explains how to use the configuration system with dotenvx encryption for the OrderMind API.
+This guide explains how to use the configuration system with dotenvx encryption for the Ordaro API.
 
 ## Overview
 

@@ -4,6 +4,7 @@ import {
   IsNumber,
   IsBoolean,
   IsEnum,
+  IsOptional,
   Min,
   Max,
 } from 'class-validator';
@@ -143,6 +144,21 @@ export class EnvironmentVariables {
 
   @IsString()
   SMS_SERVICE_API_KEY!: string;
+
+  // Paystack
+  @IsString()
+  PAYSTACK_SECRET_KEY!: string;
+
+  @IsString()
+  PAYSTACK_PUBLIC_KEY!: string;
+
+  @IsOptional()
+  @IsString()
+  PAYSTACK_BASE_URL?: string;
+
+  @IsOptional()
+  @IsString()
+  PAYSTACK_CURRENCY?: string;
 
   // Logging
   @IsEnum(LogLevel)

@@ -74,6 +74,15 @@ export class ConfigService {
     };
   }
 
+  get paystackConfig() {
+    return {
+      secretKey: this.configService.get<string>('app.paystack.secretKey'),
+      publicKey: this.configService.get<string>('app.paystack.publicKey'),
+      baseUrl: this.configService.get<string>('app.paystack.baseUrl'),
+      currency: this.configService.get<string>('app.paystack.currency', 'GHS'),
+    };
+  }
+
   get emailConfig() {
     return {
       apiKey: this.configService.get<string>('app.email.apiKey'),
