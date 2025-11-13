@@ -139,7 +139,7 @@ function generateBaseHtml(
       <div class="container">
        <div class="header">
     <img
-      src="https://i.postimg.cc/7P2GGSqp/New-Project-76.png"
+      src="https://i.postimg.cc/N0DKkLH6/ordarologo.png"
       alt="Ordaro Logo"
       width="120"
       height="auto"
