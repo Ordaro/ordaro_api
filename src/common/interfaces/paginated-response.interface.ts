@@ -3,10 +3,10 @@ export interface PageInfo {
   hasPreviousPage: boolean;
   startCursor?: string | undefined;
   endCursor?: string | undefined;
+  totalCount?: number; // Optional, expensive for large datasets
 }
 
 export interface PaginatedResponse<T> {
   data: T[];
   pageInfo: PageInfo;
-  totalCount?: number;
 }

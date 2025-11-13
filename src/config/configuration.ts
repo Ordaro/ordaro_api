@@ -29,8 +29,10 @@ export default registerAs('app', () => {
     // Redis
     redis: {
       url: process.env['REDIS_URL'],
-      host: process.env['REDIS_HOST'],
+      host: process.env['REDIS_HOST'] || 'localhost',
       port: parseInt(process.env['REDIS_PORT'] || '6379', 10),
+      password: process.env['REDIS_PASSWORD'],
+      db: parseInt(process.env['REDIS_DB'] || '0', 10),
     },
 
     // Auth0
@@ -40,6 +42,7 @@ export default registerAs('app', () => {
       audience: process.env['AUTH0_AUDIENCE'],
       issuerUrl: process.env['AUTH0_ISSUER_URL'],
       frontendClientId: process.env['AUTH0_FRONTEND_CLIENT_ID'], // Frontend app client ID
+      emailApiKey: process.env['AUTH0_EMAIL_API_KEY'], // API key for Auth0 email endpoint
       management: {
         clientId: process.env['AUTH0_MANAGEMENT_CLIENT_ID'],
         clientSecret: process.env['AUTH0_MANAGEMENT_CLIENT_SECRET'],
@@ -69,6 +72,12 @@ export default registerAs('app', () => {
       secretKey: process.env['STRIPE_SECRET_KEY'],
       webhookSecret: process.env['STRIPE_WEBHOOK_SECRET'],
     },
+    paystack: {
+      secretKey: process.env['PAYSTACK_SECRET_KEY'],
+      publicKey: process.env['PAYSTACK_PUBLIC_KEY'],
+      baseUrl: process.env['PAYSTACK_BASE_URL'] || 'https://api.paystack.co',
+      currency: process.env['PAYSTACK_CURRENCY'] || 'GHS', // Default to GHS, can be NGN, ZAR, KES, etc.
+    },
 
     email: {
       apiKey: process.env['EMAIL_SERVICE_API_KEY'],
@@ -88,6 +97,14 @@ export default registerAs('app', () => {
     upload: {
       maxFileSize: parseInt(process.env['MAX_FILE_SIZE'] || '10485760', 10),
       path: process.env['UPLOAD_PATH'],
+    },
+
+    // Cloudinary
+    cloudinary: {
+      cloudName: process.env['CLOUDINARY_CLOUD_NAME'],
+      apiKey: process.env['CLOUDINARY_API_KEY'],
+      apiSecret: process.env['CLOUDINARY_SECRET'],
+      secure: process.env['CLOUDINARY_SECURE'] !== 'false',
     },
 
     // CORS

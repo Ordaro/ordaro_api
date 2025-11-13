@@ -64,6 +64,29 @@ export class BranchesController {
       user.auth0Id,
     );
   }
+  @Post('/onboarding/branch')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.OWNER, UserRole.MANAGER)
+  @ApiOperation({
+    summary: 'Create new branch',
+    description:
+      'Creates a new restaurant branch/location. Owner and Manager roles only.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Branch created successfully',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Insufficient permissions',
+  })
+  async addBranchForOnboarding(
+    @Body() dto: CreateBranchDto,
+    @CurrentUser() user: UserPayload,
+    @Query('organizationId') organizationId: string,
+  ) {
+    return this.branchesService.create(dto, organizationId, user.auth0Id);
+  }
 
   /**
    * Get all branches accessible to the user

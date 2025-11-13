@@ -13,6 +13,8 @@ import { Auth0ManagementService } from '../auth/services/auth0-management.servic
 import { PaginationQueryDto } from '../common/dto/pagination.dto';
 import { PaginationService } from '../common/services/pagination.service';
 import { PrismaService } from '../database/prisma.service';
+import { CacheService } from '../services/cache';
+import { QueueService, ORDARO_JOB_TYPES } from '../services/queue';
 
 import { InviteUserDto, AssignBranchesDto } from './dto';
 
@@ -25,6 +27,8 @@ export class UsersService {
     private readonly auth0ManagementService: Auth0ManagementService,
     private readonly configService: ConfigService,
     private readonly paginationService: PaginationService,
+    private readonly cacheService: CacheService,
+    private readonly queueService: QueueService,
   ) {}
 
   /**
@@ -164,6 +168,21 @@ export class UsersService {
       `Invitation created for ${email} to join ${organization.name}`,
     );
 
+    // Queue invitation email
+    await this.queueService.addJob(
+      ORDARO_JOB_TYPES.SEND_INVITATION_EMAIL,
+      {
+        email,
+        invitationUrl: invitation.ticket_url,
+        inviterName: inviterName,
+        organizationName: organization.name,
+      },
+      { priority: 1 },
+    );
+
+    // Invalidate cache for organization users and invitations
+    await this.cacheService.invalidateOrganization(organizationId);
+
     return {
       invitationId: dbInvitation.id,
       invitationUrl: invitation.ticket_url,
@@ -178,7 +197,7 @@ export class UsersService {
     organizationId: string,
     paginationQuery: PaginationQueryDto,
   ) {
-    const { limit = 20, cursor, orderBy = 'desc' } = paginationQuery;
+    const { limit = 20, cursor, orderDir = 'desc' } = paginationQuery;
 
     const organization = await this.prismaService.organization.findUnique({
       where: { auth0OrgId: organizationId },
@@ -192,12 +211,12 @@ export class UsersService {
     let cursorCondition = {};
     if (cursor) {
       const decodedCursor = this.paginationService.decodeCursor(cursor);
-      if (decodedCursor) {
+      if (decodedCursor && typeof decodedCursor.tieBreakerValue === 'string') {
         cursorCondition = {
           id:
-            orderBy === 'desc'
-              ? { lt: decodedCursor.id }
-              : { gt: decodedCursor.id },
+            orderDir === 'desc'
+              ? { lt: decodedCursor.tieBreakerValue }
+              : { gt: decodedCursor.tieBreakerValue },
         };
       }
     }
@@ -221,7 +240,7 @@ export class UsersService {
           },
         },
       },
-      orderBy: { createdAt: orderBy },
+      orderBy: { createdAt: orderDir },
       take: limit + 1,
     });
 
@@ -237,12 +256,10 @@ export class UsersService {
       createdAt: user.createdAt,
     }));
 
-    return this.paginationService.buildPaginatedResponse(
-      mappedUsers,
-      limit,
-      'id',
-      ['createdAt'],
-    );
+    return this.paginationService.buildPaginatedResponse(mappedUsers, limit, {
+      cursorField: 'id',
+      additionalCursorFields: ['createdAt'],
+    });
   }
 
   /**
@@ -311,6 +328,10 @@ export class UsersService {
     });
 
     this.logger.log(`Updated branch assignments for user ${userId}`);
+
+    // Invalidate cache for this user and organization
+    await this.cacheService.invalidateUser(user.auth0UserId);
+    await this.cacheService.invalidateOrganization(organizationId);
 
     return {
       userId: user.id,
@@ -505,7 +526,7 @@ export class UsersService {
     organizationId: string,
     paginationQuery: PaginationQueryDto,
   ) {
-    const { limit = 20, cursor, orderBy = 'desc' } = paginationQuery;
+    const { limit = 20, cursor, orderDir = 'desc' } = paginationQuery;
 
     const organization = await this.prismaService.organization.findUnique({
       where: { auth0OrgId: organizationId },
@@ -518,12 +539,12 @@ export class UsersService {
     let cursorCondition = {};
     if (cursor) {
       const decodedCursor = this.paginationService.decodeCursor(cursor);
-      if (decodedCursor) {
+      if (decodedCursor && typeof decodedCursor.tieBreakerValue === 'string') {
         cursorCondition = {
           id:
-            orderBy === 'desc'
-              ? { lt: decodedCursor.id }
-              : { gt: decodedCursor.id },
+            orderDir === 'desc'
+              ? { lt: decodedCursor.tieBreakerValue }
+              : { gt: decodedCursor.tieBreakerValue },
         };
       }
     }
@@ -544,7 +565,7 @@ export class UsersService {
           },
         },
       },
-      orderBy: { createdAt: orderBy },
+      orderBy: { createdAt: orderDir },
       take: limit + 1,
     });
 
@@ -552,7 +573,7 @@ export class UsersService {
       id: inv.id,
       email: inv.email,
       role: inv.role,
-      branchName: inv.branch.name,
+      branchName: inv.branch?.name ?? null,
       branchId: inv.branchId,
       createdAt: inv.createdAt,
       expiresAt: inv.expiresAt,
@@ -562,8 +583,10 @@ export class UsersService {
     return this.paginationService.buildPaginatedResponse(
       mappedInvitations,
       limit ?? 20,
-      'id',
-      ['createdAt'],
+      {
+        cursorField: 'id',
+        additionalCursorFields: ['createdAt'],
+      },
     );
   }
 
@@ -619,6 +642,9 @@ export class UsersService {
     this.logger.log(
       `Removed user ${userId} from organization ${organizationId}`,
     );
+
+    // Invalidate cache for organization users
+    await this.cacheService.invalidateOrganization(organizationId);
 
     return { message: 'User removed successfully' };
   }

@@ -10,6 +10,7 @@ import { UserRole } from '../auth/enums/user-role.enum';
 import { PaginationQueryDto } from '../common/dto/pagination.dto';
 import { PaginationService } from '../common/services/pagination.service';
 import { PrismaService } from '../database/prisma.service';
+import { CacheService } from '../services/cache';
 
 import { CreateBranchDto, UpdateBranchDto } from './dto';
 
@@ -20,6 +21,7 @@ export class BranchesService {
   constructor(
     private readonly prismaService: PrismaService,
     private readonly paginationService: PaginationService,
+    private readonly cacheService: CacheService,
   ) {}
 
   /**
@@ -82,6 +84,9 @@ export class BranchesService {
       `Branch created: ${branch.id} in organization ${organization.id}`,
     );
 
+    // Invalidate cache for this organization's branches
+    await this.cacheService.invalidateOrganization(organizationId);
+
     return branch;
   }
 
@@ -94,7 +99,7 @@ export class BranchesService {
     userId: string,
     paginationQuery: PaginationQueryDto,
   ) {
-    const { limit = 20, cursor, orderBy = 'desc' } = paginationQuery;
+    const { limit = 20, cursor, orderDir = 'desc' } = paginationQuery;
 
     // Get organization
     const organization = await this.prismaService.organization.findUnique({
@@ -108,12 +113,12 @@ export class BranchesService {
     let cursorCondition = {};
     if (cursor) {
       const decodedCursor = this.paginationService.decodeCursor(cursor);
-      if (decodedCursor) {
+      if (decodedCursor && typeof decodedCursor.tieBreakerValue === 'string') {
         cursorCondition = {
           id:
-            orderBy === 'desc'
-              ? { lt: decodedCursor.id }
-              : { gt: decodedCursor.id },
+            orderDir === 'desc'
+              ? { lt: decodedCursor.tieBreakerValue }
+              : { gt: decodedCursor.tieBreakerValue },
         };
       }
     }
@@ -133,16 +138,14 @@ export class BranchesService {
             },
           },
         },
-        orderBy: { createdAt: orderBy },
+        orderBy: { createdAt: orderDir },
         take: limit + 1,
       });
 
-      return this.paginationService.buildPaginatedResponse(
-        branches,
-        limit,
-        'id',
-        ['createdAt'],
-      );
+      return this.paginationService.buildPaginatedResponse(branches, limit, {
+        cursorField: 'id',
+        additionalCursorFields: ['createdAt'],
+      });
     }
 
     // Other roles: only see assigned branches
@@ -168,7 +171,7 @@ export class BranchesService {
               },
             },
           },
-          orderBy: { createdAt: orderBy },
+          orderBy: { createdAt: orderDir },
           take: limit + 1,
         },
       },
@@ -178,14 +181,14 @@ export class BranchesService {
       throw new NotFoundException('User not found');
     }
 
-    const branches = user.branches.map((ub) => ub.branch);
+    const branches = user.branches.map((ub) => ub.branch) as Array<
+      Record<string, unknown>
+    >;
 
-    return this.paginationService.buildPaginatedResponse(
-      branches,
-      limit,
-      'id',
-      ['createdAt'],
-    );
+    return this.paginationService.buildPaginatedResponse(branches, limit, {
+      cursorField: 'id',
+      additionalCursorFields: ['createdAt'],
+    });
   }
 
   /**
@@ -273,10 +276,15 @@ export class BranchesService {
       }
     }
 
-    return this.prismaService.branch.update({
+    const updated = await this.prismaService.branch.update({
       where: { id },
       data: updateBranchDto,
     });
+
+    // Invalidate cache for this organization's branches
+    await this.cacheService.invalidateOrganization(organizationId);
+
+    return updated;
   }
 
   /**
@@ -405,9 +413,14 @@ export class BranchesService {
       throw new NotFoundException('Branch not found');
     }
 
-    return this.prismaService.branch.update({
+    const result = await this.prismaService.branch.update({
       where: { id },
       data: { isActive: false },
     });
+
+    // Invalidate cache for this organization's branches
+    await this.cacheService.invalidateOrganization(organizationId);
+
+    return result;
   }
 }

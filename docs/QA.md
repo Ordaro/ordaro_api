@@ -1,6 +1,6 @@
 # Quality Assurance Guide
 
-This document outlines the QA processes and tools used in the OrderMind API project.
+This document outlines the QA processes and tools used in the Ordaro API project.
 
 ## Overview
 

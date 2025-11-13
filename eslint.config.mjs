@@ -14,6 +14,8 @@ export default tseslint.config(
       'node_modules/**',
       'coverage/**',
       '*.js',
+      'auth0/**',
+      'examples/**',
     ],
   },
   eslint.configs.recommended,

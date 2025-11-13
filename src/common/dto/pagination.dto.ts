@@ -17,19 +17,29 @@ export class PaginationQueryDto {
   limit?: number = 20;
 
   @ApiPropertyOptional({
-    description: 'Cursor for pagination (base64 encoded)',
-    example: 'eyJpZCI6IjEyMyIsImNyZWF0ZWRBdCI6IjIwMjQtMDEtMDEifQ==',
+    description: 'Cursor for pagination (base64url encoded)',
+    example:
+      'eyJmaWVsZCI6ImNyZWF0ZWRBdCIsInZhbHVlIjoiMjAyNC0wMS0wMSIsInRpZUJyZWFrZXJWYWx1ZSI6IjEyMyJ9',
   })
   @IsOptional()
   @IsString()
   cursor?: string;
 
   @ApiPropertyOptional({
-    description: 'Sort order',
+    description:
+      'Field to sort by (must be a valid sortable field for the resource)',
+    example: 'createdAt',
+  })
+  @IsOptional()
+  @IsString()
+  orderBy?: string;
+
+  @ApiPropertyOptional({
+    description: 'Sort direction',
     enum: ['asc', 'desc'],
     default: 'desc',
   })
   @IsOptional()
   @IsIn(['asc', 'desc'])
-  orderBy?: 'asc' | 'desc' = 'desc';
+  orderDir?: 'asc' | 'desc' = 'desc';
 }
