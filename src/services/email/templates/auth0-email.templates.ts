@@ -137,9 +137,16 @@ function generateBaseHtml(
     </head>
     <body>
       <div class="container">
-        <div class="header">
-          <h1>Ordaro</h1>
-        </div>
+       <div class="header">
+    <img
+      src="https://i.postimg.cc/7P2GGSqp/New-Project-76.png"
+      alt="Ordaro Logo"
+      width="120"
+      height="auto"
+    style="display:block;margin:0 auto 10px auto;"
+    />
+    <h1>Ordaro</h1>
+    </div>
         <div class="content">
           ${content}
           ${buttonHtml}
