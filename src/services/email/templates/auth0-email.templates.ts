@@ -28,7 +28,7 @@ const BASE_STYLES = `
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
     .header {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #00387A 0%, #002C5F 100%);
       color: #ffffff;
       padding: 30px 20px;
       text-align: center;
@@ -55,7 +55,7 @@ const BASE_STYLES = `
     .button {
       display: inline-block;
       padding: 14px 28px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #00387A 0%, #002C5F 100%);
       color: #ffffff !important;
       text-decoration: none;
       border-radius: 6px;
@@ -77,7 +77,7 @@ const BASE_STYLES = `
     .code-box .code {
       font-size: 32px;
       font-weight: 700;
-      color: #667eea;
+      color: #00387A;
       letter-spacing: 8px;
       font-family: 'Courier New', monospace;
     }
@@ -105,7 +105,7 @@ const BASE_STYLES = `
       color: #856404;
     }
     .link {
-      color: #667eea;
+      color: #00387A;
       word-break: break-all;
     }
   </style>
