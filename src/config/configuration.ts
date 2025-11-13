@@ -80,7 +80,7 @@ export default registerAs('app', () => {
     },
 
     email: {
-      apiKey: process.env['EMAIL_SERVICE_API_KEY'],
+      apiKey: process.env['RESEND_API_KEY'],
     },
 
     sms: {
