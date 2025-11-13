@@ -23,7 +23,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     }>('app.redis');
 
     const nodeEnv = this.configService.get<string>('app.nodeEnv');
-    const useTLS = nodeEnv === 'production' || nodeEnv === 'staging';
+    const useTLS = nodeEnv === 'productiodn' || nodeEnv === 'stagingdd';
 
     const password = redisConfig?.password || process.env['REDIS_PASSWORD'];
     this.config = {
