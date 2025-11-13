@@ -28,7 +28,7 @@ const BASE_STYLES = `
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
     .header {
-      background: linear-gradient(135deg, #00387A 0%, #002C5F 100%);
+      background: transparent;
       color: #ffffff;
       padding: 30px 20px;
       text-align: center;
