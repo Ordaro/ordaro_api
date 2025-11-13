@@ -17,16 +17,16 @@ export class PinoLoggerService implements LoggerService {
 
     this.logger = pino({
       level: logLevel,
-      transport: this.isDevelopment
-        ? {
-            target: 'pino-pretty',
-            options: {
-              colorize: true,
-              translateTime: 'HH:MM:ss',
-              ignore: 'pid,hostname',
-            },
-          }
-        : undefined,
+      ...(this.isDevelopment && {
+        transport: {
+          target: 'pino-pretty',
+          options: {
+            colorize: true,
+            translateTime: 'HH:MM:ss',
+            ignore: 'pid,hostname',
+          },
+        },
+      }),
     });
   }
 
@@ -68,21 +68,23 @@ export class PinoLoggerService implements LoggerService {
  * Create a Pino logger instance (for use outside of NestJS DI)
  */
 export function createLogger(): Logger {
-  const isDev = process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'staging';
-  const logLevel = process.env.LOG_LEVEL || (isDev ? 'debug' : 'info');
+  const isDev =
+    process.env['NODE_ENV'] !== 'production' &&
+    process.env['NODE_ENV'] !== 'staging';
+  const logLevel = process.env['LOG_LEVEL'] || (isDev ? 'debug' : 'info');
 
   return pino({
     level: logLevel,
-    transport: isDev
-      ? {
-          target: 'pino-pretty',
-          options: {
-            colorize: true,
-            translateTime: 'HH:MM:ss',
-            ignore: 'pid,hostname',
-          },
-        }
-      : undefined,
+    ...(isDev && {
+      transport: {
+        target: 'pino-pretty',
+        options: {
+          colorize: true,
+          translateTime: 'HH:MM:ss',
+          ignore: 'pid,hostname',
+        },
+      },
+    }),
   });
 }
 
@@ -90,4 +92,3 @@ export function createLogger(): Logger {
  * Default logger instance (for use in utilities)
  */
 export const logger = createLogger();
-

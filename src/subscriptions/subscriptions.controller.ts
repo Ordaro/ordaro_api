@@ -9,6 +9,8 @@ import {
   HttpCode,
   HttpStatus,
   BadRequestException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -18,13 +20,12 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 
-import { Inject, forwardRef } from '@nestjs/common';
-
 import { CurrentUser, Roles } from '../auth/decorators';
 import { requiresOrganization } from '../auth/decorators/requires-organization.decorator';
 import { UserRole } from '../auth/enums/user-role.enum';
 import { Auth0Guard, RolesGuard } from '../auth/guards';
 import type { UserPayload } from '../auth/interfaces';
+import { PlansService } from '../plans/plans.service';
 
 import {
   InitializeTransactionDto,
@@ -32,7 +33,6 @@ import {
   SubscriptionResponseDto,
 } from './dto';
 import { SubscriptionsService } from './subscriptions.service';
-import { PlansService } from '../plans/plans.service';
 
 @ApiTags('Subscriptions')
 @ApiBearerAuth('Auth0')
@@ -83,7 +83,7 @@ export class SubscriptionsController {
     const plan = await this.plansService.findOne(dto.planId);
 
     return this.subscriptionsService.initializeTransaction(
-      user.organizationId!,
+      user.organizationId,
       dto.email || user.email,
       {
         amount: dto.amount || plan.amount,
@@ -99,7 +99,8 @@ export class SubscriptionsController {
   @Post('verify-transaction')
   @ApiOperation({
     summary: 'Verify Paystack transaction',
-    description: 'Verifies Paystack transaction reference and returns authorization code. Called by frontend after Paystack callback redirect.',
+    description:
+      'Verifies Paystack transaction reference and returns authorization code. Called by frontend after Paystack callback redirect.',
   })
   @ApiResponse({
     status: 200,
@@ -116,7 +117,9 @@ export class SubscriptionsController {
     },
   })
   async verifyTransaction(@Body() body: { reference: string }) {
-    return this.subscriptionsService.handleAuthorizationCallback(body.reference);
+    return this.subscriptionsService.handleAuthorizationCallback(
+      body.reference,
+    );
   }
 
   /**
@@ -146,7 +149,7 @@ export class SubscriptionsController {
     requiresOrganization(user);
 
     return this.subscriptionsService.createSubscription(
-      user.organizationId!,
+      user.organizationId,
       {
         auth0Id: user.auth0Id,
         email: user.email,
@@ -164,7 +167,8 @@ export class SubscriptionsController {
   @Roles(UserRole.OWNER, UserRole.MANAGER)
   @ApiOperation({
     summary: 'Get current subscription',
-    description: 'Returns the current active subscription for the organization.',
+    description:
+      'Returns the current active subscription for the organization.',
   })
   @ApiResponse({
     status: 200,
@@ -173,11 +177,13 @@ export class SubscriptionsController {
   })
   @ApiResponse({ status: 404, description: 'No active subscription found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async getCurrent(@CurrentUser() user: UserPayload): Promise<SubscriptionResponseDto | null> {
+  async getCurrent(
+    @CurrentUser() user: UserPayload,
+  ): Promise<SubscriptionResponseDto | null> {
     requiresOrganization(user);
 
     const subscription = await this.subscriptionsService.getCurrentSubscription(
-      user.organizationId!,
+      user.organizationId,
     );
 
     if (!subscription) {
@@ -216,7 +222,10 @@ export class SubscriptionsController {
   ): Promise<SubscriptionResponseDto> {
     requiresOrganization(user);
 
-    return this.subscriptionsService.cancelSubscription(id, user.organizationId!);
+    return this.subscriptionsService.cancelSubscription(
+      id,
+      user.organizationId,
+    );
   }
 
   /**
@@ -240,7 +249,10 @@ export class SubscriptionsController {
     description: 'Subscription reactivated successfully',
     type: SubscriptionResponseDto,
   })
-  @ApiResponse({ status: 400, description: 'Subscription cannot be reactivated' })
+  @ApiResponse({
+    status: 400,
+    description: 'Subscription cannot be reactivated',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Owner role required' })
   @ApiResponse({ status: 404, description: 'Subscription not found' })
@@ -250,7 +262,9 @@ export class SubscriptionsController {
   ): Promise<SubscriptionResponseDto> {
     requiresOrganization(user);
 
-    return this.subscriptionsService.reactivateSubscription(id, user.organizationId!);
+    return this.subscriptionsService.reactivateSubscription(
+      id,
+      user.organizationId,
+    );
   }
 }
-

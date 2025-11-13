@@ -6,4 +6,3 @@ export const BranchSortableFields: BranchOrderByField[] = [
   'name',
   'address',
 ];
-

@@ -28,4 +28,3 @@ export class InitializeTransactionDto {
   @Min(1)
   amount?: number;
 }
-

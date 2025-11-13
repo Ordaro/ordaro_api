@@ -44,9 +44,12 @@ export class Auth0Strategy extends PassportStrategy(Strategy, 'auth0') {
 
   async validate(payload: Auth0JwtPayload): Promise<UserPayload> {
     // Get expected values for comparison
-    const expectedAudience = this.configService.get<string>('app.auth0.audience');
-    const expectedIssuer = this.configService.get<string>('app.auth0.issuerUrl');
-    
+    const expectedAudience =
+      this.configService.get<string>('app.auth0.audience');
+    const expectedIssuer = this.configService.get<string>(
+      'app.auth0.issuerUrl',
+    );
+
     // Debug: Log the entire decoded payload with validation checks
     this.logger.log('🔓 Token decoded successfully - Full payload:', {
       payload: JSON.stringify(payload, null, 2),
@@ -61,13 +64,19 @@ export class Auth0Strategy extends PassportStrategy(Strategy, 'auth0') {
       // Audience validation
       tokenAudience: payload.aud,
       expectedAudience: expectedAudience,
-      audienceMatch: payload.aud === expectedAudience || (Array.isArray(payload.aud) && expectedAudience && payload.aud.includes(expectedAudience)),
+      audienceMatch:
+        payload.aud === expectedAudience ||
+        (Array.isArray(payload.aud) &&
+          expectedAudience &&
+          payload.aud.includes(expectedAudience)),
       // Issuer validation
       tokenIssuer: payload.iss,
       expectedIssuer: expectedIssuer,
       issuerMatch: payload.iss === expectedIssuer?.replace(/\/$/, ''),
       // Token timing
-      expiresAt: payload.exp ? new Date(payload.exp * 1000).toISOString() : null,
+      expiresAt: payload.exp
+        ? new Date(payload.exp * 1000).toISOString()
+        : null,
       issuedAt: payload.iat ? new Date(payload.iat * 1000).toISOString() : null,
       isExpired: payload.exp ? Date.now() > payload.exp * 1000 : false,
       // All other claims
@@ -75,7 +84,9 @@ export class Auth0Strategy extends PassportStrategy(Strategy, 'auth0') {
     });
 
     if (!payload.sub) {
-      this.logger.error('❌ Token validation failed: Missing sub (subject) claim');
+      this.logger.error(
+        '❌ Token validation failed: Missing sub (subject) claim',
+      );
       throw new UnauthorizedException('Invalid token payload');
     }
 

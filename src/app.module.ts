@@ -5,17 +5,21 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth';
 import { BranchesModule } from './branches';
 import { CommonModule } from './common/common.module';
+import { LoggerMiddleware } from './common/middleware/logger.middleware';
 import { ConfigModule, ConfigService } from './config';
 import { PrismaModule } from './database';
 import { HealthModule } from './health';
 import { MonitoringModule } from './monitoring/monitoring.module';
 import { OrganizationsModule } from './organizations';
-import { UsersModule } from './users';
 import { PlansModule } from './plans';
-import { SubscriptionsModule } from './subscriptions';
 import { CacheModule } from './services/cache/cache.module';
+import { EmailModule } from './services/email/email.module';
+import { MapsModule } from './services/maps/maps.module';
+import { QueueModule } from './services/queue/queue.module';
+import { SMSModule } from './services/sms/sms.module';
 import { StorageModule } from './services/storage/storage.module';
-import { LoggerMiddleware } from './common/middleware/logger.middleware';
+import { SubscriptionsModule } from './subscriptions';
+import { UsersModule } from './users';
 
 @Module({
   imports: [
@@ -24,6 +28,10 @@ import { LoggerMiddleware } from './common/middleware/logger.middleware';
     PrismaModule,
     CacheModule,
     StorageModule,
+    QueueModule,
+    SMSModule,
+    EmailModule,
+    MapsModule,
     HealthModule,
     MonitoringModule,
     AuthModule,
@@ -37,7 +45,6 @@ import { LoggerMiddleware } from './common/middleware/logger.middleware';
   providers: [AppService, ConfigService],
   exports: [ConfigService],
 })
-// eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer.apply(LoggerMiddleware).forRoutes('*');

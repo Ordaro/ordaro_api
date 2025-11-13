@@ -6,11 +6,13 @@ import {
   InternalServerErrorException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { PrismaService } from '../database/prisma.service';
-import { SubscriptionStatus as DtoSubscriptionStatus } from './dto/subscription-response.dto';
-import { CreateSubscriptionDto, SubscriptionResponseDto } from './dto';
-import { PaystackService } from './paystack.service';
+
 import { SubscriptionStatus as PrismaSubscriptionStatus } from '../../generated/prisma';
+import { PrismaService } from '../database/prisma.service';
+
+import { CreateSubscriptionDto, SubscriptionResponseDto } from './dto';
+import { SubscriptionStatus as DtoSubscriptionStatus } from './dto/subscription-response.dto';
+import { PaystackService } from './paystack.service';
 
 @Injectable()
 export class SubscriptionsService {
@@ -38,7 +40,10 @@ export class SubscriptionsService {
   }> {
     // Callback URL should point to frontend page (not API endpoint)
     // Frontend will then call backend API to verify the transaction
-    const frontendBaseUrl = process.env['NEXT_PUBLIC_APP_BASE_URL'] || process.env['APP_BASE_URL'] || 'http://localhost:3001';
+    const frontendBaseUrl =
+      process.env['NEXT_PUBLIC_APP_BASE_URL'] ||
+      process.env['APP_BASE_URL'] ||
+      'http://localhost:3001';
     const callbackUrl = `${frontendBaseUrl}/subscriptions/callback`;
 
     const metadata = {
@@ -58,9 +63,7 @@ export class SubscriptionsService {
    * Handle Paystack authorization callback
    * Verifies transaction and saves authorization to database
    */
-  async handleAuthorizationCallback(
-    reference: string,
-  ): Promise<{
+  async handleAuthorizationCallback(reference: string): Promise<{
     success: boolean;
     authorizationCode?: string;
     organizationId?: string;
@@ -68,7 +71,8 @@ export class SubscriptionsService {
     message: string;
   }> {
     try {
-      const transaction = await this.paystackService.verifyTransaction(reference);
+      const transaction =
+        await this.paystackService.verifyTransaction(reference);
 
       if (transaction.status !== 'success') {
         return {
@@ -79,8 +83,11 @@ export class SubscriptionsService {
 
       // Extract metadata from transaction (metadata is at transaction level)
       const metadata = transaction.metadata || {};
-      const organizationId = (metadata['organizationId'] || metadata['organization_id']) as string | undefined;
-      const planId = (metadata['planId'] || metadata['plan_id']) as string | undefined;
+      const organizationId = (metadata['organizationId'] ||
+        metadata['organization_id']) as string | undefined;
+      const planId = (metadata['planId'] || metadata['plan_id']) as
+        | string
+        | undefined;
 
       if (!organizationId || !transaction.authorization.authorizationCode) {
         return {
@@ -90,7 +97,7 @@ export class SubscriptionsService {
       }
 
       // Get or create customer for organization
-      let customer = await this.prismaService.customer.findUnique({
+      const customer = await this.prismaService.customer.findUnique({
         where: { organizationId },
       });
 
@@ -105,7 +112,9 @@ export class SubscriptionsService {
 
       // Check if authorization already exists
       let authorization = await this.prismaService.authorization.findUnique({
-        where: { paystackAuthCode: transaction.authorization.authorizationCode },
+        where: {
+          paystackAuthCode: transaction.authorization.authorizationCode,
+        },
       });
 
       if (!authorization) {
@@ -163,13 +172,19 @@ export class SubscriptionsService {
 
       return result;
     } catch (error) {
-      this.logger.error('Failed to handle authorization callback', { reference, error });
+      this.logger.error('Failed to handle authorization callback', {
+        reference,
+        error,
+      });
       if (error instanceof NotFoundException) {
         throw error;
       }
       return {
         success: false,
-        message: error instanceof Error ? error.message : 'Failed to verify transaction',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Failed to verify transaction',
       };
     }
   }
@@ -201,12 +216,18 @@ export class SubscriptionsService {
     }
 
     // Check if organization already has an active subscription
-    const existingSubscription = await this.prismaService.subscription.findFirst({
-      where: {
-        customer: { organizationId },
-        status: { in: [PrismaSubscriptionStatus.ACTIVE, PrismaSubscriptionStatus.TRIALING] },
-      },
-    });
+    const existingSubscription =
+      await this.prismaService.subscription.findFirst({
+        where: {
+          customer: { organizationId },
+          status: {
+            in: [
+              PrismaSubscriptionStatus.ACTIVE,
+              PrismaSubscriptionStatus.TRIALING,
+            ],
+          },
+        },
+      });
 
     if (existingSubscription) {
       throw new BadRequestException(
@@ -215,7 +236,7 @@ export class SubscriptionsService {
     }
 
     // Get or create customer
-    let customer = await this.prismaService.customer.findUnique({
+    const customer = await this.prismaService.customer.findUnique({
       where: { organizationId },
     });
 
@@ -243,11 +264,12 @@ export class SubscriptionsService {
 
     try {
       // Create subscription in Paystack
-      const paystackSubscription = await this.paystackService.createSubscription({
-        customer: customer.paystackCustomerCode,
-        plan: dto.planCode,
-        authorization: dto.authorizationCode,
-      });
+      const paystackSubscription =
+        await this.paystackService.createSubscription({
+          customer: customer.paystackCustomerCode,
+          plan: dto.planCode,
+          authorization: dto.authorizationCode,
+        });
 
       // Calculate period dates from Paystack response or use defaults
       const periodStart = new Date(paystackSubscription.start * 1000);
@@ -281,7 +303,10 @@ export class SubscriptionsService {
           paystackEmailToken: paystackSubscription.emailToken || null,
           customerId: customer.id,
           planId: plan.id,
-          status: paystackSubscription.status === 'active' ? PrismaSubscriptionStatus.ACTIVE : PrismaSubscriptionStatus.INACTIVE,
+          status:
+            paystackSubscription.status === 'active'
+              ? PrismaSubscriptionStatus.ACTIVE
+              : PrismaSubscriptionStatus.INACTIVE,
           currentPeriodStart: periodStart,
           currentPeriodEnd: periodEnd,
         },
@@ -314,7 +339,13 @@ export class SubscriptionsService {
     const subscription = await this.prismaService.subscription.findFirst({
       where: {
         customer: { organizationId },
-          status: { in: [PrismaSubscriptionStatus.ACTIVE, PrismaSubscriptionStatus.TRIALING, PrismaSubscriptionStatus.PAST_DUE] },
+        status: {
+          in: [
+            PrismaSubscriptionStatus.ACTIVE,
+            PrismaSubscriptionStatus.TRIALING,
+            PrismaSubscriptionStatus.PAST_DUE,
+          ],
+        },
       },
       orderBy: { createdAt: 'desc' },
       include: {
@@ -347,7 +378,9 @@ export class SubscriptionsService {
     }
 
     if (subscription.customer.organizationId !== organizationId) {
-      throw new UnauthorizedException('Subscription does not belong to your organization');
+      throw new UnauthorizedException(
+        'Subscription does not belong to your organization',
+      );
     }
 
     try {
@@ -399,11 +432,15 @@ export class SubscriptionsService {
     }
 
     if (subscription.customer.organizationId !== organizationId) {
-      throw new UnauthorizedException('Subscription does not belong to your organization');
+      throw new UnauthorizedException(
+        'Subscription does not belong to your organization',
+      );
     }
 
     if (subscription.status !== PrismaSubscriptionStatus.CANCELLED) {
-      throw new BadRequestException('Only cancelled subscriptions can be reactivated');
+      throw new BadRequestException(
+        'Only cancelled subscriptions can be reactivated',
+      );
     }
 
     try {
@@ -434,7 +471,9 @@ export class SubscriptionsService {
         subscriptionId,
         error: error.message,
       });
-      throw new InternalServerErrorException('Failed to reactivate subscription');
+      throw new InternalServerErrorException(
+        'Failed to reactivate subscription',
+      );
     }
   }
 
@@ -475,4 +514,3 @@ export class SubscriptionsService {
     return result;
   }
 }
-

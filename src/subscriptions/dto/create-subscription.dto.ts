@@ -18,4 +18,3 @@ export class CreateSubscriptionDto {
   @IsNotEmpty()
   authorizationCode!: string;
 }
-

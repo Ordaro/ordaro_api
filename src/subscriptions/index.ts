@@ -4,4 +4,3 @@ export { PaystackService } from './paystack.service';
 export { SubscriptionsController } from './subscriptions.controller';
 export { WebhooksController } from './webhooks.controller';
 export * from './dto';
-

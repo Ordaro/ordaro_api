@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
 import { PlanInterval } from './create-plan.dto';
 
 export class PlanResponseDto {
@@ -63,4 +64,3 @@ export class PlanResponseDto {
   })
   updatedAt!: Date;
 }
-

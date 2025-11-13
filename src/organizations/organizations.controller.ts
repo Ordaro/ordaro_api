@@ -139,7 +139,6 @@ export class OrganizationsController {
 
     console.log('organization', organization);
     console.log('user', user);
-   
 
     return organization;
   }

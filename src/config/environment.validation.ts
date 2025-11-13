@@ -121,6 +121,9 @@ export class EnvironmentVariables {
   AUTH0_CUSTOM_CLAIMS_NAMESPACE!: string;
 
   @IsString()
+  AUTH0_EMAIL_API_KEY!: string;
+
+  @IsString()
   API_INTERNAL_TOKEN!: string;
 
   // API

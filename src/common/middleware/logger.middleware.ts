@@ -1,5 +1,6 @@
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
+
 import { createLogger } from '../services/logger.service';
 
 @Injectable()
@@ -8,11 +9,16 @@ export class LoggerMiddleware implements NestMiddleware {
 
   use(req: Request, res: Response, next: NextFunction): void {
     const startTime = Date.now();
-    const correlationId = req.headers['x-correlation-id'] || `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const correlationIdHeader = req.headers['x-correlation-id'];
+    const correlationId: string = Array.isArray(correlationIdHeader)
+      ? correlationIdHeader[0] ||
+        `req-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
+      : correlationIdHeader ||
+        `req-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 
     // Add correlation ID to request
-    req['correlationId'] = correlationId;
-    res.setHeader('X-Correlation-Id', correlationId as string);
+    (req as Request & { correlationId?: string }).correlationId = correlationId;
+    res.setHeader('X-Correlation-Id', correlationId);
 
     // Log request
     this.logger.info(
@@ -47,4 +53,3 @@ export class LoggerMiddleware implements NestMiddleware {
     next();
   }
 }
-

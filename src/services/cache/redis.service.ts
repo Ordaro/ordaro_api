@@ -1,4 +1,9 @@
-import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleInit,
+  OnModuleDestroy,
+  Logger,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Redis, RedisOptions } from 'ioredis';
 
@@ -13,19 +18,23 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       url?: string;
       host?: string;
       port?: number;
+      password?: string;
+      db?: number;
     }>('app.redis');
 
     const nodeEnv = this.configService.get<string>('app.nodeEnv');
     const useTLS = nodeEnv === 'production' || nodeEnv === 'staging';
 
+    const password = redisConfig?.password || process.env['REDIS_PASSWORD'];
     this.config = {
-      host: redisConfig?.host || process.env.REDIS_HOST || 'localhost',
-      port: redisConfig?.port || parseInt(process.env.REDIS_PORT || '6379', 10),
-      password: redisConfig?.password || process.env.REDIS_PASSWORD,
-      db: redisConfig?.db || parseInt(process.env.REDIS_DB || '0', 10),
+      host: redisConfig?.host || process.env['REDIS_HOST'] || 'localhost',
+      port:
+        redisConfig?.port || parseInt(process.env['REDIS_PORT'] || '6379', 10),
+      ...(password && { password }),
+      db: redisConfig?.db || parseInt(process.env['REDIS_DB'] || '0', 10),
       maxRetriesPerRequest: null,
       name: 'ordaro-api-redis-client',
-      tls: useTLS ? {} : undefined,
+      ...(useTLS && { tls: {} }),
       ...(redisConfig?.url && { url: redisConfig.url }),
     };
   }
@@ -94,7 +103,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     try {
       return await this.client.get(key);
     } catch (error) {
-      this.logger.error(`Error getting key ${key}: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.error(
+        `Error getting key ${key}: ${error instanceof Error ? error.message : String(error)}`,
+      );
       return null;
     }
   }
@@ -115,7 +126,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       }
       return true;
     } catch (error) {
-      this.logger.error(`Error setting key ${key}: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.error(
+        `Error setting key ${key}: ${error instanceof Error ? error.message : String(error)}`,
+      );
       return false;
     }
   }
@@ -132,7 +145,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       await this.client.del(key);
       return true;
     } catch (error) {
-      this.logger.error(`Error deleting key ${key}: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.error(
+        `Error deleting key ${key}: ${error instanceof Error ? error.message : String(error)}`,
+      );
       return false;
     }
   }
@@ -148,7 +163,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       const result = await this.client.exists(key);
       return result === 1;
     } catch (error) {
-      this.logger.error(`Error checking existence of key ${key}: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.error(
+        `Error checking existence of key ${key}: ${error instanceof Error ? error.message : String(error)}`,
+      );
       return false;
     }
   }
@@ -164,7 +181,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       const result = await this.client.expire(key, seconds);
       return result === 1;
     } catch (error) {
-      this.logger.error(`Error setting expiration on key ${key}: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.error(
+        `Error setting expiration on key ${key}: ${error instanceof Error ? error.message : String(error)}`,
+      );
       return false;
     }
   }
@@ -185,14 +204,19 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   /**
    * Set JSON value (helper method)
    */
-  async setJson(key: string, value: unknown, ttlSeconds?: number): Promise<boolean> {
+  async setJson(
+    key: string,
+    value: unknown,
+    ttlSeconds?: number,
+  ): Promise<boolean> {
     try {
       const jsonString = JSON.stringify(value);
       return await this.set(key, jsonString, ttlSeconds);
     } catch (error) {
-      this.logger.error(`Error serializing JSON for key ${key}: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.error(
+        `Error serializing JSON for key ${key}: ${error instanceof Error ? error.message : String(error)}`,
+      );
       return false;
     }
   }
 }
-

@@ -13,10 +13,11 @@ import type { RawBodyRequest } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import type { Request } from 'express';
 
-import { PrismaService } from '../database/prisma.service';
-import { PaystackService } from './paystack.service';
-import { PaystackEventType } from './dto';
 import { SubscriptionStatus as PrismaSubscriptionStatus } from '../../generated/prisma';
+import { PrismaService } from '../database/prisma.service';
+
+import { PaystackEventType } from './dto';
+import { PaystackService } from './paystack.service';
 
 @ApiTags('Webhooks')
 @Controller('webhooks')
@@ -57,7 +58,10 @@ export class WebhooksController {
     const rawBody =
       req.rawBody?.toString('utf8') ||
       (typeof req.body === 'string' ? req.body : JSON.stringify(event));
-    const isValid = this.paystackService.verifyWebhookSignature(rawBody, signature);
+    const isValid = this.paystackService.verifyWebhookSignature(
+      rawBody,
+      signature,
+    );
 
     if (!isValid) {
       this.logger.error('Invalid webhook signature', {
@@ -88,13 +92,14 @@ export class WebhooksController {
     eventType: string,
     data: Record<string, unknown>,
   ): Promise<void> {
-    switch (eventType) {
+    const typedEventType = eventType as PaystackEventType;
+    switch (typedEventType) {
       case PaystackEventType.CHARGE_SUCCESS:
-        await this.handleChargeSuccess(data);
+        this.handleChargeSuccess(data);
         break;
 
       case PaystackEventType.SUBSCRIPTION_CREATE:
-        await this.handleSubscriptionCreate(data);
+        this.handleSubscriptionCreate(data);
         break;
 
       case PaystackEventType.SUBSCRIPTION_ENABLE:
@@ -106,7 +111,7 @@ export class WebhooksController {
         break;
 
       case PaystackEventType.INVOICE_CREATE:
-        await this.handleInvoiceCreate(data);
+        this.handleInvoiceCreate(data);
         break;
 
       case PaystackEventType.INVOICE_PAYMENT_FAILED:
@@ -118,7 +123,7 @@ export class WebhooksController {
         break;
 
       case PaystackEventType.SUBSCRIPTION_EXPIRING_CARDS:
-        await this.handleSubscriptionExpiringCards(data);
+        this.handleSubscriptionExpiringCards(data);
         break;
 
       default:
@@ -126,7 +131,7 @@ export class WebhooksController {
     }
   }
 
-  private async handleChargeSuccess(data: Record<string, unknown>): Promise<void> {
+  private handleChargeSuccess(data: Record<string, unknown>): void {
     this.logger.log('Charge success event', {
       reference: (data['reference'] as string) ?? '',
       amount: (data['amount'] as number) ?? 0,
@@ -135,7 +140,7 @@ export class WebhooksController {
     // Additional logic can be added here if needed
   }
 
-  private async handleSubscriptionCreate(data: Record<string, unknown>): Promise<void> {
+  private handleSubscriptionCreate(data: Record<string, unknown>): void {
     this.logger.log('Subscription created event', {
       subscriptionCode: data['subscription_code'] ?? '',
     });
@@ -143,7 +148,9 @@ export class WebhooksController {
     // This event can be used for additional processing/logging
   }
 
-  private async handleSubscriptionEnable(data: Record<string, unknown>): Promise<void> {
+  private async handleSubscriptionEnable(
+    data: Record<string, unknown>,
+  ): Promise<void> {
     const subscriptionCode = data['subscription_code'] as string;
     if (!subscriptionCode) {
       this.logger.warn('Subscription enable event missing subscription_code');
@@ -156,7 +163,9 @@ export class WebhooksController {
       });
 
       if (!subscription) {
-        this.logger.warn('Subscription not found for enable event', { subscriptionCode });
+        this.logger.warn('Subscription not found for enable event', {
+          subscriptionCode,
+        });
         return;
       }
 
@@ -169,7 +178,10 @@ export class WebhooksController {
         },
       });
 
-      this.logger.log('Subscription enabled', { subscriptionId: subscription.id, subscriptionCode });
+      this.logger.log('Subscription enabled', {
+        subscriptionId: subscription.id,
+        subscriptionCode,
+      });
     } catch (error) {
       this.logger.error('Failed to handle subscription enable', {
         subscriptionCode,
@@ -178,7 +190,9 @@ export class WebhooksController {
     }
   }
 
-  private async handleSubscriptionDisable(data: Record<string, unknown>): Promise<void> {
+  private async handleSubscriptionDisable(
+    data: Record<string, unknown>,
+  ): Promise<void> {
     const subscriptionCode = data['subscription_code'] as string;
     if (!subscriptionCode) {
       this.logger.warn('Subscription disable event missing subscription_code');
@@ -191,7 +205,9 @@ export class WebhooksController {
       });
 
       if (!subscription) {
-        this.logger.warn('Subscription not found for disable event', { subscriptionCode });
+        this.logger.warn('Subscription not found for disable event', {
+          subscriptionCode,
+        });
         return;
       }
 
@@ -204,7 +220,10 @@ export class WebhooksController {
         },
       });
 
-      this.logger.log('Subscription disabled', { subscriptionId: subscription.id, subscriptionCode });
+      this.logger.log('Subscription disabled', {
+        subscriptionId: subscription.id,
+        subscriptionCode,
+      });
     } catch (error) {
       this.logger.error('Failed to handle subscription disable', {
         subscriptionCode,
@@ -213,7 +232,7 @@ export class WebhooksController {
     }
   }
 
-  private async handleInvoiceCreate(data: Record<string, unknown>): Promise<void> {
+  private handleInvoiceCreate(data: Record<string, unknown>): void {
     this.logger.log('Invoice created event', {
       invoiceId: (data['id'] as string) ?? '',
       subscriptionCode: (data['subscription'] as string) ?? '',
@@ -221,10 +240,14 @@ export class WebhooksController {
     // Invoice creation tracking can be added here
   }
 
-  private async handleInvoicePaymentFailed(data: Record<string, unknown>): Promise<void> {
+  private async handleInvoicePaymentFailed(
+    data: Record<string, unknown>,
+  ): Promise<void> {
     const subscriptionCode = data['subscription'] as string;
     if (!subscriptionCode) {
-      this.logger.warn('Invoice payment failed event missing subscription code');
+      this.logger.warn(
+        'Invoice payment failed event missing subscription code',
+      );
       return;
     }
 
@@ -234,7 +257,9 @@ export class WebhooksController {
       });
 
       if (!subscription) {
-        this.logger.warn('Subscription not found for payment failed event', { subscriptionCode });
+        this.logger.warn('Subscription not found for payment failed event', {
+          subscriptionCode,
+        });
         return;
       }
 
@@ -257,7 +282,9 @@ export class WebhooksController {
     }
   }
 
-  private async handleInvoiceUpdate(data: Record<string, unknown>): Promise<void> {
+  private async handleInvoiceUpdate(
+    data: Record<string, unknown>,
+  ): Promise<void> {
     const invoiceStatus = (data['status'] as string) ?? '';
     const subscriptionCode = data['subscription'] as string;
 
@@ -306,7 +333,7 @@ export class WebhooksController {
     }
   }
 
-  private async handleSubscriptionExpiringCards(data: Record<string, unknown>): Promise<void> {
+  private handleSubscriptionExpiringCards(data: Record<string, unknown>): void {
     this.logger.warn('Subscription expiring cards event', {
       subscriptionCode: data['subscription_code'] ?? '',
     });
@@ -314,4 +341,3 @@ export class WebhooksController {
     // This can trigger email notifications
   }
 }
-

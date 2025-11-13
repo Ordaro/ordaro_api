@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
 
 import { PaginatedResponse } from '../interfaces/paginated-response.interface';
-import { decodeCursor, encodeCursor, type CursorPayload } from '../utils/cursor.util';
+import {
+  decodeCursor,
+  encodeCursor,
+  type CursorPayload,
+} from '../utils/cursor.util';
 
 export interface CursorFields {
   id: string;
@@ -57,7 +61,11 @@ export class PaginationService {
       additionalCursorFields?: (keyof T)[];
     } = {},
   ): PaginatedResponse<T> {
-    const { orderBy, orderDir = 'desc', cursorField = 'id' as keyof T, additionalCursorFields = [] } = options;
+    const {
+      orderBy,
+      cursorField = 'id' as keyof T,
+      additionalCursorFields = [],
+    } = options;
 
     const hasNextPage = items.length > limit;
     const data = hasNextPage ? items.slice(0, -1) : items;
@@ -73,10 +81,20 @@ export class PaginationService {
       const sortField = orderBy || String(cursorField);
 
       startCursor = this.encodeCursor(
-        this.extractCursorFields(firstItem, sortField, cursorField, additionalCursorFields),
+        this.extractCursorFields(
+          firstItem,
+          sortField,
+          cursorField,
+          additionalCursorFields,
+        ),
       );
       endCursor = this.encodeCursor(
-        this.extractCursorFields(lastItem, sortField, cursorField, additionalCursorFields),
+        this.extractCursorFields(
+          lastItem,
+          sortField,
+          cursorField,
+          additionalCursorFields,
+        ),
       );
     }
 
@@ -122,7 +140,10 @@ export class PaginationService {
   /**
    * Validate sort field against allowed sortable fields
    */
-  validateSortField(sortField: string | undefined, sortableFields: string[]): string {
+  validateSortField(
+    sortField: string | undefined,
+    sortableFields: string[],
+  ): string {
     if (!sortField) {
       return sortableFields[0] || 'createdAt';
     }
@@ -144,7 +165,10 @@ export class PaginationService {
     sortableFields: string[],
     defaultField: string = 'createdAt',
   ): Record<string, 'asc' | 'desc'> {
-    const validField = this.validateSortField(orderBy, sortableFields.length > 0 ? sortableFields : [defaultField]);
+    const validField = this.validateSortField(
+      orderBy,
+      sortableFields.length > 0 ? sortableFields : [defaultField],
+    );
     return {
       [validField]: orderDir,
       id: orderDir, // Always include id as tie-breaker

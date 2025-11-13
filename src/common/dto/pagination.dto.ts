@@ -18,14 +18,16 @@ export class PaginationQueryDto {
 
   @ApiPropertyOptional({
     description: 'Cursor for pagination (base64url encoded)',
-    example: 'eyJmaWVsZCI6ImNyZWF0ZWRBdCIsInZhbHVlIjoiMjAyNC0wMS0wMSIsInRpZUJyZWFrZXJWYWx1ZSI6IjEyMyJ9',
+    example:
+      'eyJmaWVsZCI6ImNyZWF0ZWRBdCIsInZhbHVlIjoiMjAyNC0wMS0wMSIsInRpZUJyZWFrZXJWYWx1ZSI6IjEyMyJ9',
   })
   @IsOptional()
   @IsString()
   cursor?: string;
 
   @ApiPropertyOptional({
-    description: 'Field to sort by (must be a valid sortable field for the resource)',
+    description:
+      'Field to sort by (must be a valid sortable field for the resource)',
     example: 'createdAt',
   })
   @IsOptional()

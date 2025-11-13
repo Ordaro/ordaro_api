@@ -53,7 +53,10 @@ export class PlansController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Owner role required' })
-  @ApiResponse({ status: 409, description: 'Plan with this name already exists' })
+  @ApiResponse({
+    status: 409,
+    description: 'Plan with this name already exists',
+  })
   async create(
     @Body() createPlanDto: CreatePlanDto,
     @CurrentUser() _user: UserPayload,
@@ -68,14 +71,17 @@ export class PlansController {
   @Get()
   @ApiOperation({
     summary: 'List subscription plans',
-    description: 'Returns all active subscription plans available for subscription.',
+    description:
+      'Returns all active subscription plans available for subscription.',
   })
   @ApiResponse({
     status: 200,
     description: 'Plans retrieved successfully',
     type: [PlanResponseDto],
   })
-  async findAll(@Query() query: PaginationQueryDto): Promise<PlanResponseDto[]> {
+  async findAll(
+    @Query() query: PaginationQueryDto,
+  ): Promise<PlanResponseDto[]> {
     return this.plansService.findAll(query);
   }
 
@@ -163,8 +169,10 @@ export class PlansController {
   @ApiResponse({ status: 403, description: 'Forbidden - Owner role required' })
   @ApiResponse({ status: 404, description: 'Plan not found' })
   @ApiResponse({ status: 409, description: 'Plan has active subscriptions' })
-  async remove(@Param('id') id: string, @CurrentUser() _user: UserPayload): Promise<void> {
+  async remove(
+    @Param('id') id: string,
+    @CurrentUser() _user: UserPayload,
+  ): Promise<void> {
     return this.plansService.remove(id);
   }
 }
-

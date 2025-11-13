@@ -80,14 +80,13 @@ export class BranchesController {
     status: 403,
     description: 'Forbidden - Insufficient permissions',
   })
-async addBranchForOnboarding(
-  @Body() dto: CreateBranchDto,
-  @CurrentUser() user: UserPayload,
-  @Query('organizationId') organizationId: string,
-) {
-  
-  return this.branchesService.create(dto, organizationId, user.auth0Id);
-}
+  async addBranchForOnboarding(
+    @Body() dto: CreateBranchDto,
+    @CurrentUser() user: UserPayload,
+    @Query('organizationId') organizationId: string,
+  ) {
+    return this.branchesService.create(dto, organizationId, user.auth0Id);
+  }
 
   /**
    * Get all branches accessible to the user

@@ -20,4 +20,3 @@ import { PlansService } from './plans.service';
   exports: [PlansService],
 })
 export class PlansModule {}
-

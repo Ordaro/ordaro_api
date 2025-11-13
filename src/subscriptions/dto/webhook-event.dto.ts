@@ -26,4 +26,3 @@ export class PaystackWebhookEventDto {
   })
   data!: Record<string, unknown>;
 }
-

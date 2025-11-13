@@ -42,6 +42,7 @@ export default registerAs('app', () => {
       audience: process.env['AUTH0_AUDIENCE'],
       issuerUrl: process.env['AUTH0_ISSUER_URL'],
       frontendClientId: process.env['AUTH0_FRONTEND_CLIENT_ID'], // Frontend app client ID
+      emailApiKey: process.env['AUTH0_EMAIL_API_KEY'], // API key for Auth0 email endpoint
       management: {
         clientId: process.env['AUTH0_MANAGEMENT_CLIENT_ID'],
         clientSecret: process.env['AUTH0_MANAGEMENT_CLIENT_SECRET'],

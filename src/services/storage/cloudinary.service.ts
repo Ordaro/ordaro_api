@@ -20,15 +20,28 @@ export class CloudinaryService {
       secure?: boolean;
     }>('app.cloudinary');
 
-    if (!cloudinaryConfig?.cloudName || !cloudinaryConfig?.apiKey || !cloudinaryConfig?.apiSecret) {
-      this.logger.warn('Cloudinary configuration incomplete. File uploads will not work.');
+    if (
+      !cloudinaryConfig?.cloudName ||
+      !cloudinaryConfig?.apiKey ||
+      !cloudinaryConfig?.apiSecret
+    ) {
+      this.logger.warn(
+        'Cloudinary configuration incomplete. File uploads will not work.',
+      );
     }
 
     this.cloudinaryConfig = {
-      cloud_name: cloudinaryConfig?.cloudName || process.env['CLOUDINARY_CLOUD_NAME'] || '',
-      api_key: cloudinaryConfig?.apiKey || process.env['CLOUDINARY_API_KEY'] || '',
-      api_secret: cloudinaryConfig?.apiSecret || process.env['CLOUDINARY_SECRET'] || '',
-      secure: cloudinaryConfig?.secure ?? process.env['CLOUDINARY_SECURE'] !== 'false',
+      cloud_name:
+        cloudinaryConfig?.cloudName ||
+        process.env['CLOUDINARY_CLOUD_NAME'] ||
+        '',
+      api_key:
+        cloudinaryConfig?.apiKey || process.env['CLOUDINARY_API_KEY'] || '',
+      api_secret:
+        cloudinaryConfig?.apiSecret || process.env['CLOUDINARY_SECRET'] || '',
+      secure:
+        cloudinaryConfig?.secure ??
+        process.env['CLOUDINARY_SECURE'] !== 'false',
     };
 
     // Configure Cloudinary
@@ -73,7 +86,10 @@ export class CloudinaryService {
         uploadOptions['tags'] = options.tags;
       }
 
-      const result = await cloudinary.uploader.upload(file as string, uploadOptions);
+      const result = await cloudinary.uploader.upload(
+        file as string,
+        uploadOptions,
+      );
       this.logger.log(`File uploaded successfully: ${result.public_id}`);
       return result;
     } catch (error) {
@@ -120,7 +136,9 @@ export class CloudinaryService {
       }
 
       const result = await cloudinary.uploader.upload(url, uploadOptions);
-      this.logger.log(`File uploaded from URL successfully: ${result.public_id}`);
+      this.logger.log(
+        `File uploaded from URL successfully: ${result.public_id}`,
+      );
       return result;
     } catch (error) {
       this.logger.error(
@@ -145,7 +163,9 @@ export class CloudinaryService {
       if (result.result === 'ok') {
         this.logger.log(`File deleted successfully: ${publicId}`);
       } else {
-        this.logger.warn(`File deletion result: ${result.result} for ${publicId}`);
+        this.logger.warn(
+          `File deletion result: ${result.result} for ${publicId}`,
+        );
       }
       return result;
     } catch (error) {
@@ -160,7 +180,10 @@ export class CloudinaryService {
   /**
    * Generate a signed upload URL for client-side uploads
    */
-  generateUploadSignature(folder?: string, publicId?: string): {
+  generateUploadSignature(
+    folder?: string,
+    publicId?: string,
+  ): {
     signature: string;
     timestamp: number;
     cloudName: string;
@@ -194,7 +217,10 @@ export class CloudinaryService {
   /**
    * Get secure URL for a public ID
    */
-  getSecureUrl(publicId: string, transformation?: Record<string, unknown>[]): string {
+  getSecureUrl(
+    publicId: string,
+    transformation?: Record<string, unknown>[],
+  ): string {
     return cloudinary.url(publicId, {
       secure: true,
       transformation,
@@ -245,7 +271,10 @@ export class CloudinaryService {
   /**
    * Get file info
    */
-  async getFileInfo(publicId: string, resourceType: 'image' | 'video' | 'raw' = 'image'): Promise<UploadApiResponse> {
+  async getFileInfo(
+    publicId: string,
+    resourceType: 'image' | 'video' | 'raw' = 'image',
+  ): Promise<UploadApiResponse> {
     try {
       const result = await cloudinary.api.resource(publicId, {
         resource_type: resourceType,
@@ -271,4 +300,3 @@ export class CloudinaryService {
     );
   }
 }
-

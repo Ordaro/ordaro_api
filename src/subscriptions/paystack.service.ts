@@ -1,5 +1,10 @@
-import { Injectable, Logger, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import axios, { AxiosInstance } from 'axios';
+
 import { ConfigService } from '../config/config.service';
 
 @Injectable()
@@ -63,7 +68,10 @@ export class PaystackService {
         ...(data.metadata && { metadata: data.metadata }),
       };
 
-      const response = await this.client.post('/transaction/initialize', requestData);
+      const response = await this.client.post(
+        '/transaction/initialize',
+        requestData,
+      );
 
       const responseData = response.data.data;
 
@@ -109,9 +117,11 @@ export class PaystackService {
     metadata?: Record<string, unknown>;
   }> {
     try {
-      const response = await this.client.get(`/transaction/verify/${reference}`);
+      const response = await this.client.get(
+        `/transaction/verify/${reference}`,
+      );
       const data = response.data.data;
-      
+
       // Paystack returns metadata at the transaction level
       return {
         status: data.status,
@@ -160,7 +170,9 @@ export class PaystackService {
         interval: data.interval,
         amount: data.amount,
         currency: data.currency || this.currency,
-        ...(data.description !== undefined && { description: data.description }),
+        ...(data.description !== undefined && {
+          description: data.description,
+        }),
       };
 
       const response = await this.client.post('/plan', requestData);
@@ -338,6 +350,7 @@ export class PaystackService {
    * Paystack uses HMAC SHA512 with the secret key (not a separate webhook secret)
    */
   verifyWebhookSignature(payload: string, signature: string): boolean {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const crypto = require('crypto');
     const hash = crypto
       .createHmac('sha512', this.secretKey)
@@ -354,4 +367,3 @@ export class PaystackService {
     return this.publicKey;
   }
 }
-

@@ -1,4 +1,8 @@
-export type OrganizationOrderByField = 'createdAt' | 'updatedAt' | 'name' | 'slug';
+export type OrganizationOrderByField =
+  | 'createdAt'
+  | 'updatedAt'
+  | 'name'
+  | 'slug';
 
 export const OrganizationSortableFields: OrganizationOrderByField[] = [
   'createdAt',
@@ -6,4 +10,3 @@ export const OrganizationSortableFields: OrganizationOrderByField[] = [
   'name',
   'slug',
 ];
-

@@ -1,23 +1,25 @@
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, HttpException, HttpStatus } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 import { AppModule } from './app.module';
-import { ConfigService } from './config';
-import { createLogger } from './common/services/logger.service';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { createLogger } from './common/services/logger.service';
+import { ConfigService } from './config';
+import { CacheInterceptor } from './services/cache';
 
 async function bootstrap() {
   const logger = createLogger();
-  const app = await NestFactory.create(AppModule, {
-    logger: logger,
-  });
+  const app = await NestFactory.create(AppModule);
 
   // Get configuration service
   const configService = app.get(ConfigService);
 
   // Global exception filter
   app.useGlobalFilters(new HttpExceptionFilter());
+
+  // Global cache interceptor (only caches GET requests)
+  app.useGlobalInterceptors(app.get(CacheInterceptor));
 
   // Global validation pipe
   app.useGlobalPipes(
@@ -120,12 +122,15 @@ async function bootstrap() {
   const port = configService.port;
   await app.listen(port);
 
-  logger.info({
-    port,
-    environment: configService.nodeEnv,
-    apiPrefix: apiPrefix || 'none',
-    swaggerDocs: `http://localhost:${port}/api-docs`,
-  }, '🚀 Application started successfully');
+  logger.info(
+    {
+      port,
+      environment: configService.nodeEnv,
+      apiPrefix: apiPrefix || 'none',
+      swaggerDocs: `http://localhost:${port}/api-docs`,
+    },
+    '🚀 Application started successfully',
+  );
 }
 
 bootstrap().catch((error) => {

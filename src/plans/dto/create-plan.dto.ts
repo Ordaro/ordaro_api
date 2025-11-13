@@ -1,5 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsInt, Min, IsEnum, IsOptional, IsObject } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsInt,
+  Min,
+  IsEnum,
+  IsOptional,
+  IsObject,
+} from 'class-validator';
 
 export enum PlanInterval {
   DAILY = 'DAILY',
@@ -26,7 +34,8 @@ export class CreatePlanDto {
   description?: string;
 
   @ApiProperty({
-    description: 'Amount in smallest currency unit (pesewas for GHS, kobo for NGN, cents for ZAR/KES). Minimum: 200 for GHS (2 GHS), 100 for NGN (1 NGN)',
+    description:
+      'Amount in smallest currency unit (pesewas for GHS, kobo for NGN, cents for ZAR/KES). Minimum: 200 for GHS (2 GHS), 100 for NGN (1 NGN)',
     example: 5000, // 50 GHS (5000 pesewas) or 50 NGN (5000 kobo)
     minimum: 1,
   })
@@ -50,4 +59,3 @@ export class CreatePlanDto {
   @IsObject()
   features?: Record<string, unknown>;
 }
-

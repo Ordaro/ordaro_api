@@ -8,12 +8,22 @@ import {
   Inject,
   forwardRef,
 } from '@nestjs/common';
-import { Prisma } from '../../generated/prisma';
-import { PrismaService } from '../database/prisma.service';
+
+import {
+  Prisma,
+  PlanInterval as PrismaPlanInterval,
+} from '../../generated/prisma';
 import { PaginationQueryDto } from '../common/dto/pagination.dto';
-import { CreatePlanDto, UpdatePlanDto, PlanResponseDto } from './dto';
-import { PlanInterval as PrismaPlanInterval } from '../../generated/prisma';
+import { PrismaService } from '../database/prisma.service';
+import { CacheService } from '../services/cache';
 import { PaystackService } from '../subscriptions/paystack.service';
+
+import {
+  CreatePlanDto,
+  UpdatePlanDto,
+  PlanResponseDto,
+  PlanInterval,
+} from './dto';
 
 @Injectable()
 export class PlansService {
@@ -23,6 +33,7 @@ export class PlansService {
     private readonly prismaService: PrismaService,
     @Inject(forwardRef(() => PaystackService))
     private readonly paystackService: PaystackService,
+    private readonly cacheService: CacheService,
   ) {}
 
   async create(dto: CreatePlanDto): Promise<PlanResponseDto> {
@@ -32,14 +43,19 @@ export class PlansService {
     });
 
     if (existing) {
-      throw new ConflictException(`Plan with name "${dto.name}" already exists`);
+      throw new ConflictException(
+        `Plan with name "${dto.name}" already exists`,
+      );
     }
 
     try {
       // Create plan in Paystack first
       // Note: Amount must be in smallest currency unit (pesewas/kobo/cents)
       // Minimum: 200 pesewas (2 GHS) for GHS, 100 kobo (1 NGN) for NGN
-      const paystackIntervalMap: Record<PrismaPlanInterval, 'daily' | 'weekly' | 'monthly' | 'annually'> = {
+      const paystackIntervalMap: Record<
+        PrismaPlanInterval,
+        'daily' | 'weekly' | 'monthly' | 'annually'
+      > = {
         DAILY: 'daily',
         WEEKLY: 'weekly',
         MONTHLY: 'monthly',
@@ -69,11 +85,20 @@ export class PlansService {
           description: dto.description ?? null,
           amount: dto.amount,
           interval: dto.interval,
-          features: dto.features ? (dto.features as Prisma.InputJsonValue) : Prisma.DbNull,
+          features: dto.features
+            ? (dto.features as Prisma.InputJsonValue)
+            : Prisma.DbNull,
         },
       });
 
-      this.logger.log(`Plan created: ${plan.id}`, { planId: plan.id, name: plan.name, paystackPlanCode: paystackPlan.planCode });
+      this.logger.log(`Plan created: ${plan.id}`, {
+        planId: plan.id,
+        name: plan.name,
+        paystackPlanCode: paystackPlan.planCode,
+      });
+
+      // Invalidate plans cache
+      await this.cacheService.invalidateResource('plans');
 
       return this.mapToResponse(plan);
     } catch (error) {
@@ -85,17 +110,17 @@ export class PlansService {
   }
 
   async findAll(query: PaginationQueryDto): Promise<PlanResponseDto[]> {
-    const { limit = 20, orderBy = 'desc' } = query;
+    const { limit = 20, orderDir = 'desc' } = query;
 
     const plans = await this.prismaService.plan.findMany({
       where: { isActive: true },
       take: limit,
       orderBy: {
-        createdAt: orderBy,
+        createdAt: orderDir,
       },
     });
 
-    return plans.map(plan => this.mapToResponse(plan));
+    return plans.map((plan) => this.mapToResponse(plan));
   }
 
   async findOne(id: string): Promise<PlanResponseDto> {
@@ -130,7 +155,10 @@ export class PlansService {
         if (dto.description !== undefined) {
           updateData.description = dto.description;
         }
-        await this.paystackService.updatePlan(existing.paystackPlanCode, updateData);
+        await this.paystackService.updatePlan(
+          existing.paystackPlanCode,
+          updateData,
+        );
       }
 
       // Check if amount or interval changed (not allowed by Paystack)
@@ -140,7 +168,10 @@ export class PlansService {
         );
       }
 
-      if (dto.interval !== undefined && dto.interval !== existing.interval) {
+      if (
+        dto.interval !== undefined &&
+        dto.interval !== (existing.interval as unknown as PlanInterval)
+      ) {
         throw new BadRequestException(
           'Cannot update plan interval. Create a new plan instead.',
         );
@@ -150,13 +181,22 @@ export class PlansService {
         where: { id },
         data: {
           ...(dto.name !== undefined && { name: dto.name }),
-          ...(dto.description !== undefined && { description: dto.description }),
-          ...(dto.features !== undefined && { features: dto.features ? (dto.features as Prisma.InputJsonValue) : Prisma.DbNull }),
+          ...(dto.description !== undefined && {
+            description: dto.description,
+          }),
+          ...(dto.features !== undefined && {
+            features: dto.features
+              ? (dto.features as Prisma.InputJsonValue)
+              : Prisma.DbNull,
+          }),
           ...(dto.isActive !== undefined && { isActive: dto.isActive }),
         },
       });
 
       this.logger.log(`Plan updated: ${plan.id}`, { planId: plan.id });
+
+      // Invalidate plans cache
+      await this.cacheService.invalidateResource('plans');
 
       return this.mapToResponse(plan);
     } catch (error) {
@@ -200,6 +240,9 @@ export class PlansService {
     });
 
     this.logger.log(`Plan deactivated: ${id}`, { planId: id });
+
+    // Invalidate plans cache
+    await this.cacheService.invalidateResource('plans');
   }
 
   private mapToResponse(plan: {
@@ -228,4 +271,3 @@ export class PlansService {
     };
   }
 }
-

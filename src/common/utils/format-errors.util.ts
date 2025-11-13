@@ -1,4 +1,4 @@
-import { ValidationError } from 'class-validator';
+import type { ValidationError } from 'class-validator';
 
 export interface FormattedError {
   message: string;
@@ -10,7 +10,9 @@ export interface FormattedError {
 /**
  * Format class-validator validation errors
  */
-export function formatValidationErrors(errors: ValidationError[]): FormattedError[] {
+export function formatValidationErrors(
+  errors: ValidationError[],
+): FormattedError[] {
   return errors.map((error) => {
     const formatted: FormattedError = {
       message: error.constraints
@@ -39,7 +41,15 @@ export function formatValidationErrors(errors: ValidationError[]): FormattedErro
  * Format a single validation error
  */
 export function formatValidationError(error: ValidationError): FormattedError {
-  return formatValidationErrors([error])[0];
+  const formatted = formatValidationErrors([error]);
+  if (formatted.length === 0) {
+    throw new Error('Failed to format validation error');
+  }
+  const result = formatted[0];
+  if (!result) {
+    throw new Error('Failed to format validation error');
+  }
+  return result;
 }
 
 /**
@@ -54,20 +64,56 @@ export function extractErrorInfo(error: unknown): {
   if (error instanceof Error) {
     return {
       message: error.message,
-      stack: error.stack,
-      name: error.name,
-      code: (error as Error & { code?: string }).code,
+      ...(error.stack && { stack: error.stack }),
+      ...(error.name && { name: error.name }),
+      ...((error as Error & { code?: string }).code && {
+        code: (error as Error & { code?: string }).code,
+      }),
     };
   }
 
   if (typeof error === 'object' && error !== null) {
     const errorObj = error as Record<string, unknown>;
-    return {
-      message: String(errorObj.message || 'Unknown error'),
-      stack: errorObj.stack as string | undefined,
-      name: errorObj.name as string | undefined,
-      code: errorObj.code as string | undefined,
+    const messageValue = errorObj['message'];
+    let message: string;
+    if (typeof messageValue === 'string') {
+      message = messageValue;
+    } else if (messageValue == null) {
+      message = 'Unknown error';
+    } else if (
+      typeof messageValue === 'number' ||
+      typeof messageValue === 'boolean'
+    ) {
+      message = String(messageValue);
+    } else {
+      message = 'Unknown error';
+    }
+
+    const result: {
+      message: string;
+      stack?: string;
+      name?: string;
+      code?: string;
+    } = {
+      message,
     };
+
+    const stack = errorObj['stack'];
+    if (typeof stack === 'string') {
+      result.stack = stack;
+    }
+
+    const name = errorObj['name'];
+    if (typeof name === 'string') {
+      result.name = name;
+    }
+
+    const code = errorObj['code'];
+    if (typeof code === 'string') {
+      result.code = code;
+    }
+
+    return result;
   }
 
   return {
@@ -96,7 +142,7 @@ export function formatErrorResponse(
   };
 } {
   const errorInfo = extractErrorInfo(error);
-  const isDevelopment = process.env.NODE_ENV === 'development';
+  const isDevelopment = process.env['NODE_ENV'] === 'development';
 
   const response: {
     error: {
@@ -111,9 +157,29 @@ export function formatErrorResponse(
   } = {
     error: {
       message: errorInfo.message,
-      code: errorInfo.code,
+      ...(errorInfo.code && { code: errorInfo.code }),
       timestamp: new Date().toISOString(),
-      ...(options?.context?.path && { path: options.context.path as string }),
+      ...(options?.context &&
+      typeof options.context === 'object' &&
+      options.context !== null &&
+      'path' in options.context &&
+      options.context['path']
+        ? (() => {
+            const pathValue = options.context['path'];
+            let path: string;
+            if (typeof pathValue === 'string') {
+              path = pathValue;
+            } else if (
+              typeof pathValue === 'number' ||
+              typeof pathValue === 'boolean'
+            ) {
+              path = String(pathValue);
+            } else {
+              path = '';
+            }
+            return { path };
+          })()
+        : {}),
     },
   };
 
@@ -152,4 +218,3 @@ export function formatValidationErrorResponse(errors: ValidationError[]): {
     },
   };
 }
-

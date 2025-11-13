@@ -6,4 +6,3 @@ export const UserSortableFields: UserOrderByField[] = [
   'email',
   'name',
 ];
-

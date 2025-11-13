@@ -6,13 +6,14 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
+import { ValidationError } from 'class-validator';
 import { Request, Response } from 'express';
+
 import {
   formatErrorResponse,
   formatValidationErrorResponse,
   extractErrorInfo,
 } from '../utils/format-errors.util';
-import { ValidationError } from 'class-validator';
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -23,7 +24,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
-    const correlationId = request['correlationId'] || 'unknown';
+    const correlationId =
+      (request as Request & { correlationId?: string }).correlationId ||
+      'unknown';
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let errorResponse: ReturnType<typeof formatErrorResponse>['error'];
@@ -42,11 +45,13 @@ export class HttpExceptionFilter implements ExceptionFilter {
       ) {
         // Try to format as validation errors
         const messages = exceptionResponse.message as string[];
-        const validationErrors: ValidationError[] = messages.map((msg, index) => ({
-          property: `field_${index}`,
-          constraints: { [msg]: msg },
-          children: [],
-        }));
+        const validationErrors: ValidationError[] = messages.map(
+          (msg, index) => ({
+            property: `field_${index}`,
+            constraints: { [msg]: msg },
+            children: [],
+          }),
+        );
 
         const formatted = formatValidationErrorResponse(validationErrors);
         errorResponse = formatted.error;
@@ -55,7 +60,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
         const message =
           typeof exceptionResponse === 'string'
             ? exceptionResponse
-            : (exceptionResponse as { message?: string }).message || exception.message;
+            : (exceptionResponse as { message?: string }).message ||
+              exception.message;
 
         errorResponse = {
           message: Array.isArray(message) ? message.join(', ') : message,
@@ -66,7 +72,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         };
 
         // Include error details in development
-        if (process.env.NODE_ENV === 'development') {
+        if (process.env['NODE_ENV'] === 'development') {
           errorResponse.details = exceptionResponse;
         }
       }
@@ -112,4 +118,3 @@ export class HttpExceptionFilter implements ExceptionFilter {
     });
   }
 }
-

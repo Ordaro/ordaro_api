@@ -1,5 +1,14 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsInt, Min, IsEnum, IsOptional, IsObject, IsBoolean } from 'class-validator';
+import {
+  IsString,
+  IsInt,
+  Min,
+  IsEnum,
+  IsOptional,
+  IsObject,
+  IsBoolean,
+} from 'class-validator';
+
 import { PlanInterval } from './create-plan.dto';
 
 export class UpdatePlanDto {
@@ -52,4 +61,3 @@ export class UpdatePlanDto {
   @IsBoolean()
   isActive?: boolean;
 }
-

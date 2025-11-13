@@ -16,7 +16,9 @@ export class Auth0Guard extends AuthGuard('auth0') {
         method: request.method,
         url: request.url,
         hasAuthHeader: !!authHeader,
-        tokenPreview: token ? `${token.substring(0, 20)}...${token.substring(token.length - 10)}` : 'none',
+        tokenPreview: token
+          ? `${token.substring(0, 20)}...${token.substring(token.length - 10)}`
+          : 'none',
         tokenLength: token?.length || 0,
         fullToken: token, // Full token for debugging
       });
@@ -30,7 +32,12 @@ export class Auth0Guard extends AuthGuard('auth0') {
     return super.canActivate(context);
   }
 
-  override handleRequest(err: any, user: any, info: any, context: ExecutionContext) {
+  override handleRequest(
+    err: any,
+    user: any,
+    info: any,
+    context: ExecutionContext,
+  ) {
     const request = context.switchToHttp().getRequest();
 
     if (err) {
@@ -51,14 +58,17 @@ export class Auth0Guard extends AuthGuard('auth0') {
     }
 
     if (user) {
-      this.logger.debug('✅ Token validated successfully - User authenticated:', {
-        auth0Id: user.auth0Id,
-        email: user.email,
-        organizationId: user.organizationId || 'none',
-        role: user.role,
-        method: request.method,
-        url: request.url,
-      });
+      this.logger.debug(
+        '✅ Token validated successfully - User authenticated:',
+        {
+          auth0Id: user.auth0Id,
+          email: user.email,
+          organizationId: user.organizationId || 'none',
+          role: user.role,
+          method: request.method,
+          url: request.url,
+        },
+      );
     }
 
     return super.handleRequest(err, user, info, context);
