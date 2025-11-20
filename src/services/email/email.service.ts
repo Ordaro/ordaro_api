@@ -871,7 +871,7 @@ export class EmailService {
           { name: 'slug', value: data.slug },
           { name: 'type', value: type },
         ],
-        skipSpamValidation: false,
+        skipSpamValidation: true,
       });
     } catch (error) {
       this.logger.error(
