@@ -7,24 +7,24 @@ export enum ClerkEmailType {
   WELCOME_EMAIL = 'welcome_email',
   UNKNOWN = 'unknown',
 }
-
 export interface ClerkEmailTemplateData {
   to: string;
   subject: string;
   slug: string;
-  rawBody?: string;
-  rawBodyPlain?: string;
-  otpCode?: string;
-  verificationUrl?: string;
-  resetUrl?: string;
-  magicLinkUrl?: string;
-  invitationUrl?: string;
-  requestedAt?: string;
-  requestedBy?: string;
-  organizationName?: string;
-  appName?: string;
-  appUrl?: string;
-  appLogoUrl?: string;
-  clientIp?: string;
-  userAgent?: string;
+  rawBody: string;
+
+  rawBodyPlain?: string | undefined; // optional
+  otpCode?: string | undefined;
+  verificationUrl?: string | undefined;
+  resetUrl?: string | undefined;
+  magicLinkUrl?: string | undefined;
+  invitationUrl?: string | undefined;
+  requestedAt?: string | undefined;
+  requestedBy?: string | undefined;
+  organizationName?: string | undefined;
+  appName?: string | undefined;
+  appUrl?: string | undefined;
+  appLogoUrl?: string | undefined;
+  clientIp?: string | undefined;
+  userAgent?: string | undefined;
 }

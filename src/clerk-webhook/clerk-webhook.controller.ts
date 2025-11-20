@@ -755,43 +755,71 @@ export class ClerkWebhookController {
         status: payload.status,
       });
     }
+
     const templateData: ClerkEmailTemplateData = {
       to: payload.to_email_address,
       subject: payload.subject,
       slug: payload.slug,
+
+      // Required
       rawBody: payload.body,
-      ...(payload.body_plain ? { rawBodyPlain: payload.body_plain } : {}),
-      ...(metadata.otp_code ? { otpCode: metadata.otp_code } : {}),
-      ...(metadata.verification_url
-        ? { verificationUrl: metadata.verification_url }
-        : {}),
-      ...(metadata.reset_password_url
-        ? { resetUrl: metadata.reset_password_url }
-        : {}),
-      ...(metadata.magic_link_url
-        ? { magicLinkUrl: metadata.magic_link_url }
-        : {}),
-      ...(metadata.invitation_url
-        ? { invitationUrl: metadata.invitation_url }
-        : {}),
-      ...(metadata.requested_at ? { requestedAt: metadata.requested_at } : {}),
-      ...(metadata.requested_by ? { requestedBy: metadata.requested_by } : {}),
-      ...(metadata.organization?.name
-        ? { organizationName: metadata.organization.name }
-        : metadata['org_name']
-          ? { organizationName: metadata['org_name'] as string }
-          : {}),
-      ...((metadata.app?.name || metadata.app?.domain_name) && {
-        appName:
-          (metadata.app?.name as string) ||
-          (metadata.app?.domain_name as string),
-      }),
-      ...(metadata.app?.url ? { appUrl: metadata.app.url } : {}),
-      ...(metadata.app?.logo_image_url
-        ? { appLogoUrl: metadata.app.logo_image_url }
-        : {}),
-      ...(httpRequest?.client_ip ? { clientIp: httpRequest.client_ip } : {}),
-      ...(httpRequest?.user_agent ? { userAgent: httpRequest.user_agent } : {}),
+      rawBodyPlain:
+        typeof payload.body_plain === 'string' ? payload.body_plain : undefined,
+
+      // Invitation URL (action_url safely validated)
+      invitationUrl:
+        typeof metadata['action_url'] === 'string'
+          ? metadata['action_url']
+          : undefined,
+
+      // inviter_name → requestedBy
+      requestedBy:
+        typeof metadata['inviter_name'] === 'string'
+          ? metadata['inviter_name']
+          : undefined,
+
+      // Organization name — ensure string
+      organizationName:
+        typeof metadata.organization?.name === 'string'
+          ? metadata.organization.name
+          : typeof metadata['org_name'] === 'string'
+            ? metadata['org_name']
+            : undefined,
+
+      // App name (name | domain_name)
+      appName:
+        typeof metadata.app?.name === 'string'
+          ? metadata.app.name
+          : typeof metadata.app?.domain_name === 'string'
+            ? metadata.app.domain_name
+            : undefined,
+
+      // App URL
+      appUrl:
+        typeof metadata.app?.url === 'string' ? metadata.app.url : undefined,
+
+      // App logo
+      appLogoUrl:
+        typeof metadata.app?.logo_image_url === 'string'
+          ? metadata.app.logo_image_url
+          : undefined,
+
+      // Network
+      clientIp:
+        typeof httpRequest?.client_ip === 'string'
+          ? httpRequest.client_ip
+          : undefined,
+
+      userAgent:
+        typeof httpRequest?.user_agent === 'string'
+          ? httpRequest.user_agent
+          : undefined,
+
+      // Fields required by interface but not supplied in this webhook
+      otpCode: undefined,
+      verificationUrl: undefined,
+      resetUrl: undefined,
+      magicLinkUrl: undefined,
     };
 
     await this.queueService.addJob(
