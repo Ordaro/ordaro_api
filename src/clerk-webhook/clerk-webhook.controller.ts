@@ -747,7 +747,14 @@ export class ClerkWebhookController {
     const metadata = payload.data || {};
     const httpRequest = event.event_attributes?.http_request;
 
-    const emailType = this.mapClerkEmailSlugToType(payload.slug);
+    const emailType = this.mapClerkEmailType(payload.slug, payload.subject);
+    if (emailType === ClerkEmailType.UNKNOWN) {
+      this.logger.warn('Clerk email slug not mapped, using fallback template', {
+        slug: payload.slug ?? 'undefined',
+        subject: payload.subject,
+        status: payload.status,
+      });
+    }
     const templateData: ClerkEmailTemplateData = {
       to: payload.to_email_address,
       subject: payload.subject,
@@ -803,39 +810,59 @@ export class ClerkWebhookController {
     });
   }
 
-  private mapClerkEmailSlugToType(slug: string): ClerkEmailType {
-    const normalized = slug.toLowerCase();
-    if (
-      normalized.includes('verification') ||
-      normalized.includes('verify') ||
-      normalized.includes('otp')
-    ) {
-      return ClerkEmailType.VERIFICATION_CODE;
+  private mapClerkEmailType(
+    rawSlug: string | null,
+    rawSubject: string | undefined,
+  ): ClerkEmailType {
+    const tokens: string[] = [];
+
+    if (rawSlug) {
+      tokens.push(rawSlug);
+    }
+    if (rawSubject) {
+      tokens.push(rawSubject);
     }
 
-    if (normalized.includes('reset') || normalized.includes('password')) {
-      return ClerkEmailType.PASSWORD_RESET;
-    }
+    for (const token of tokens) {
+      const normalized = token.trim().toLowerCase();
+      if (!normalized) {
+        continue;
+      }
 
-    if (
-      normalized.includes('magic') ||
-      normalized.includes('signin') ||
-      normalized.includes('sign-in') ||
-      normalized.includes('link')
-    ) {
-      return ClerkEmailType.MAGIC_LINK;
-    }
+      if (
+        normalized.includes('verification') ||
+        normalized.includes('verify') ||
+        normalized.includes('otp') ||
+        normalized.includes('code')
+      ) {
+        return ClerkEmailType.VERIFICATION_CODE;
+      }
 
-    if (
-      normalized.includes('invite') ||
-      normalized.includes('invitation') ||
-      normalized.includes('member')
-    ) {
-      return ClerkEmailType.ORGANIZATION_INVITATION;
-    }
+      if (normalized.includes('reset') || normalized.includes('password')) {
+        return ClerkEmailType.PASSWORD_RESET;
+      }
 
-    if (normalized.includes('welcome')) {
-      return ClerkEmailType.WELCOME_EMAIL;
+      if (
+        normalized.includes('magic') ||
+        normalized.includes('signin') ||
+        normalized.includes('sign-in') ||
+        normalized.includes('link') ||
+        normalized.includes('login')
+      ) {
+        return ClerkEmailType.MAGIC_LINK;
+      }
+
+      if (
+        normalized.includes('invite') ||
+        normalized.includes('invitation') ||
+        normalized.includes('member')
+      ) {
+        return ClerkEmailType.ORGANIZATION_INVITATION;
+      }
+
+      if (normalized.includes('welcome')) {
+        return ClerkEmailType.WELCOME_EMAIL;
+      }
     }
 
     return ClerkEmailType.UNKNOWN;
