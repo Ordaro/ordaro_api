@@ -298,30 +298,48 @@ function welcomeTemplate(data: ClerkEmailTemplateData): EmailTemplate {
 }
 
 function fallbackTemplate(data: ClerkEmailTemplateData): EmailTemplate {
-  if (data.rawBody) {
-    return {
-      subject: data.subject,
-      html: data.rawBody,
-      text: data.rawBodyPlain ?? data.subject,
-    };
-  }
+  const preview = data.subject || 'Notification from Ordaro';
+  const safeText = escapeHtml(
+    data.rawBodyPlain ||
+      'You have a new notification in your Ordaro workspace.',
+  ).replace(/\n/g, '<br />');
+
+  const actionUrl =
+    data.invitationUrl ||
+    data.verificationUrl ||
+    data.resetUrl ||
+    data.magicLinkUrl;
 
   const body = `
-    <p class="text">
-      ${data.subject}
-    </p>
+    <p class="text">${safeText}</p>
+    ${
+      actionUrl
+        ? `<a class="button" href="${actionUrl}" target="_blank" rel="noopener noreferrer">
+            View in Ordaro
+          </a>`
+        : ''
+    }
     <div class="meta">
-      This message was generated automatically by Ordaro.
+      This message was generated automatically by Ordaro. If this looks unexpected, please contact support.
     </div>
   `;
 
   return wrapTemplate({
-    title: data.subject,
-    subject: data.subject,
+    title: data.subject || 'Ordaro notification',
+    subject: data.subject || preview,
     body,
-    previewText: data.subject,
+    previewText: preview,
     branding: normalizeBranding(data),
   });
+}
+
+function escapeHtml(input: string): string {
+  return input
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 export function getClerkEmailTemplate(
