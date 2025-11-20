@@ -27,7 +27,6 @@ function wrapTemplate({
     primaryColor: string;
     accentColor: string;
     buttonTextColor: string;
-    logoUrl?: string;
     pageBg: string;
     cardBg: string;
     borderColor: string;
@@ -116,11 +115,6 @@ function wrapTemplate({
         <span class="preview-text">${previewText ?? ''}</span>
         <div class="container">
           <div class="card">
-            ${
-              branding.logoUrl
-                ? `<div style="margin-bottom: 32px;"><img src="${branding.logoUrl}" alt="Logo" style="height: 40px; max-width: 160px;"/></div>`
-                : ''
-            }
             <h1 class="title">${title}</h1>
             ${body}
           </div>
@@ -351,25 +345,21 @@ export function getClerkEmailTemplate(
   }
 }
 
-function normalizeBranding(data: ClerkEmailTemplateData): {
+function normalizeBranding(_data: ClerkEmailTemplateData): {
   textColor: string;
   primaryColor: string;
   accentColor: string;
   buttonTextColor: string;
-  logoUrl?: string;
   pageBg: string;
   cardBg: string;
   borderColor: string;
   mutedText: string;
 } {
   return {
-    textColor: data.brandColor || data.accentColor || DEFAULT_TEXT_COLOR,
-    primaryColor: data.brandColor || DEFAULT_PRIMARY_COLOR,
-    accentColor: data.accentColor || data.brandColor || DEFAULT_ACCENT_COLOR,
-    buttonTextColor: data.buttonTextColor || DEFAULT_BUTTON_TEXT,
-    ...(data.logoUrl || data.appLogoUrl
-      ? { logoUrl: data.logoUrl || data.appLogoUrl }
-      : {}),
+    textColor: DEFAULT_TEXT_COLOR,
+    primaryColor: DEFAULT_PRIMARY_COLOR,
+    accentColor: DEFAULT_ACCENT_COLOR,
+    buttonTextColor: DEFAULT_BUTTON_TEXT,
     pageBg: PAGE_BACKGROUND,
     cardBg: CARD_BACKGROUND,
     borderColor: BORDER_COLOR,
