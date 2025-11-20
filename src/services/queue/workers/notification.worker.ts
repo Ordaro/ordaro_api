@@ -7,6 +7,10 @@ import {
   Auth0ApplicationDto,
   Auth0OrganizationDto,
 } from '../../email/dto/auth0-email.dto';
+import {
+  ClerkEmailType,
+  ClerkEmailTemplateData,
+} from '../../email/dto/clerk-email.dto';
 import { EmailService } from '../../email/email.service';
 import { SMSService } from '../../sms/sms.service';
 import { ORDARO_JOB_TYPES } from '../job-types.enum';
@@ -52,6 +56,9 @@ export class NotificationWorker implements OnModuleInit {
           break;
         case ORDARO_JOB_TYPES.SEND_AUTH0_EMAIL:
           result = await this.handleSendAuth0Email(job.data);
+          break;
+        case ORDARO_JOB_TYPES.SEND_CLERK_EMAIL:
+          result = await this.handleSendClerkEmail(job.data);
           break;
         case ORDARO_JOB_TYPES.SEND_SMS:
           result = await this.handleSendSMS(job.data);
@@ -215,5 +222,18 @@ export class NotificationWorker implements OnModuleInit {
       code,
       reason,
     });
+  }
+
+  private async handleSendClerkEmail(data: JobData): Promise<unknown> {
+    const { type, templateData } = data as {
+      type: ClerkEmailType;
+      templateData: ClerkEmailTemplateData;
+    };
+
+    this.logger.log(
+      `Processing Clerk email: Slug: ${templateData.slug}, Type: ${type}, To: ${templateData.to}`,
+    );
+
+    return this.emailService.sendClerkEmail(type, templateData);
   }
 }

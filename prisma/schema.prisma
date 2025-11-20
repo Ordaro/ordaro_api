@@ -40,6 +40,17 @@ model Organization {
   users         User[]
   invitations   Invitation[]
   customer      Customer?
+  ingredients   Ingredient[]
+  recipes       Recipe[]
+  menuItems     MenuItem[]
+  proposals     MenuItemProposal[]
+  settings      CompanySetting?
+  cogsLedger    CogsLedger[]
+  costSimulations CostSimulation[]
+  organizationCustomers OrganizationCustomer[]
+  customerConsents CustomerConsent[]
+  customerNotifications CustomerNotification[]
+  customerPreferences CustomerPreference[]
 
   @@map("organizations")
 }
@@ -57,8 +68,15 @@ model Branch {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   userBranches UserBranch[]
-  invitations  Invitation[] 
-  // POS relations: orders, menuItems, inventory, tables, etc.
+  invitations  Invitation[]
+  batches      IngredientBatch[]
+  stockEntries StockEntry[]
+  branchMenus  BranchMenu[]
+  proposals    MenuItemProposal[]
+  priceChangeRequests PriceChangeRequest[]
+  syncQueue    SyncQueue[]
+  lastSyncedAt DateTime?
+  organizationCustomers OrganizationCustomer[]
 
   @@unique([organizationId, name])
   @@map("branches")
@@ -79,6 +97,10 @@ model User {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   branches UserBranch[]
+  approvedProposals MenuItemProposal[] @relation("ApprovedProposals")
+  approvedPriceChanges PriceChangeRequest[] @relation("ApprovedPriceChanges")
+  approvedWaste StockEntry[] @relation("ApprovedWaste")
+  createdSimulations CostSimulation[] @relation("CreatedSimulations")
   // POS relations: orders, shifts, etc.
 
   @@map("users")
@@ -225,4 +247,643 @@ model Subscription {
   @@index([customerId])
   @@index([status])
   @@map("subscriptions")
+}
+
+// ============================================================================
+// Menu, Recipe & Ingredient System
+// ============================================================================
+
+enum StockEntryType {
+  PURCHASE
+  ADJUSTMENT
+  WASTAGE
+}
+
+enum ProposalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PriceChangeRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum WasteReason {
+  SPOILAGE
+  OVER_PREPARATION
+  DAMAGED
+  EXPIRED
+  OTHER
+}
+
+enum WasteApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// Ingredient Models
+model Ingredient {
+  id              String   @id @default(uuid())
+  name            String
+  unit            String   // e.g., "kg", "liters", "pieces"
+  reorderThreshold Decimal? @db.Decimal(10, 2)
+  totalStock      Decimal  @default(0) @db.Decimal(10, 2) // Cached total stock
+  averageUnitCost Decimal? @db.Decimal(10, 2) // Weighted average cost
+  fifoUnitCost    Decimal? @db.Decimal(10, 2) // FIFO cost of next available batch
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  companyId String
+  company   Organization @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  costHistory    IngredientCostHistory[]
+  batches        IngredientBatch[]
+  stockEntries   StockEntry[]
+  stockDeductions StockDeduction[]
+  recipeIngredients RecipeIngredient[]
+  costSimulationIngredients CostSimulationIngredient[] @relation("SimulationIngredients")
+
+  @@unique([companyId, name])
+  @@index([companyId])
+  @@index([companyId, isActive])
+  @@map("ingredients")
+}
+
+model IngredientCostHistory {
+  id          String   @id @default(uuid())
+  unitCost    Decimal  @db.Decimal(10, 2)
+  recordedAt  DateTime @default(now())
+  reason      String?  // e.g., "Purchase", "Price Update"
+
+  ingredientId String
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  @@index([ingredientId, recordedAt])
+  @@map("ingredient_cost_history")
+}
+
+model IngredientBatch {
+  id              String    @id @default(uuid())
+  remainingQty    Decimal   @db.Decimal(10, 2)
+  unitCost        Decimal   @db.Decimal(10, 2)
+  totalCost       Decimal   @db.Decimal(10, 2)
+  receiptRef      String?
+  expiresAt       DateTime?
+  expirationWarningSent Boolean @default(false)
+  isClosed        Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  ingredientId String
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  branchId String?
+  branch   Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+
+  stockEntries   StockEntry[]
+  stockDeductions StockDeduction[]
+
+  @@index([ingredientId, createdAt])
+  @@index([ingredientId, isClosed])
+  @@index([expiresAt])
+  @@map("ingredient_batches")
+}
+
+// Recipe Models
+model Recipe {
+  id            String   @id @default(uuid())
+  name          String
+  yieldQuantity Decimal  @db.Decimal(10, 2) // Number of portions this recipe produces
+  totalCost     Decimal  @default(0) @db.Decimal(10, 2) // Total cost of all ingredients
+  costPerPortion Decimal @default(0) @db.Decimal(10, 2) // totalCost / yieldQuantity
+  version       Int      @default(1) // Version number for cost snapshots
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  companyId String
+  company   Organization @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  recipeIngredients RecipeIngredient[]
+  menuItems         MenuItem[]
+  menuVariants      MenuVariant[]
+  proposals         MenuItemProposal[] @relation("ProposalRecipes")
+
+  @@unique([companyId, name])
+  @@index([companyId])
+  @@index([companyId, isActive])
+  @@map("recipes")
+}
+
+model RecipeIngredient {
+  id            String   @id @default(uuid())
+  quantityUsed  Decimal  @db.Decimal(10, 2)
+  unitCostAtUse Decimal  @db.Decimal(10, 2) // Snapshot of ingredient cost at recipe creation/update
+  totalCost     Decimal  @db.Decimal(10, 2) // quantityUsed * unitCostAtUse
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  recipeId String
+  recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  ingredientId String
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  @@unique([recipeId, ingredientId])
+  @@index([recipeId])
+  @@index([ingredientId])
+  @@map("recipe_ingredients")
+}
+
+// Menu Models
+model MenuItem {
+  id              String   @id @default(uuid())
+  name            String
+  description     String?
+  imageUrl        String?
+  category        String?
+  basePrice       Decimal  @db.Decimal(10, 2)
+  portionMultiplier Decimal @default(1) @db.Decimal(10, 2) // Multiplier for recipe portions
+  computedCost    Decimal? @db.Decimal(10, 2) // Calculated from recipe
+  margin          Decimal? @db.Decimal(10, 2) // (basePrice - computedCost) / basePrice
+  totalOrders     Int      @default(0) // Count of orders
+  totalRevenue    Decimal  @default(0) @db.Decimal(10, 2) // Sum of revenue
+  lastOrderedAt   DateTime?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  companyId String
+  company   Organization @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  recipeId String?
+  recipe   Recipe? @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+
+  variants    MenuVariant[]
+  branchMenus BranchMenu[]
+  proposals   MenuItemProposal[]
+  priceChangeRequests PriceChangeRequest[] @relation("PriceChangeMenuItems")
+  costSimulationResults CostSimulationResult[] @relation("SimulationMenuItems")
+
+  @@unique([companyId, name])
+  @@index([companyId])
+  @@index([companyId, isActive])
+  @@index([recipeId])
+  @@map("menu_items")
+}
+
+model MenuVariant {
+  id              String   @id @default(uuid())
+  name            String   // e.g., "Small", "Large", "Extra Large"
+  price           Decimal  @db.Decimal(10, 2)
+  portionMultiplier Decimal @default(1) @db.Decimal(10, 2)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  menuItemId String
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+
+  recipeId String? // Optional recipe override for this variant
+  recipe   Recipe? @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+
+  @@unique([menuItemId, name])
+  @@index([menuItemId])
+  @@map("menu_variants")
+}
+
+// Branch Menu Models
+model BranchMenu {
+  id          String   @id @default(uuid())
+  localPrice  Decimal? @db.Decimal(10, 2) // Branch-specific price override
+  availability Boolean @default(true)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  menuItemId String
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+
+  @@unique([branchId, menuItemId])
+  @@index([branchId])
+  @@index([menuItemId])
+  @@map("branch_menus")
+}
+
+model MenuItemProposal {
+  id          String         @id @default(uuid())
+  name        String
+  description String?
+  basePrice   Decimal        @db.Decimal(10, 2)
+  status      ProposalStatus @default(PENDING)
+  notes       String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  approvedAt  DateTime?
+  rejectedAt  DateTime?
+
+  companyId String
+  company   Organization @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  recipeId String?
+  recipe   Recipe? @relation("ProposalRecipes", fields: [recipeId], references: [id], onDelete: SetNull)
+
+  menuItemId String? // Created menu item after approval
+  menuItem   MenuItem? @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
+
+  approverId String? // User who approved/rejected
+  approver   User? @relation("ApprovedProposals", fields: [approverId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, status])
+  @@index([branchId])
+  @@index([status])
+  @@map("menu_item_proposals")
+}
+
+model PriceChangeRequest {
+  id            String                  @id @default(uuid())
+  requestedPrice Decimal                 @db.Decimal(10, 2)
+  status        PriceChangeRequestStatus @default(PENDING)
+  notes         String?
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+  approvedAt    DateTime?
+  rejectedAt    DateTime?
+
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  menuItemId String
+  menuItem   MenuItem @relation("PriceChangeMenuItems", fields: [menuItemId], references: [id], onDelete: Cascade)
+
+  approverId String?
+  approver   User? @relation("ApprovedPriceChanges", fields: [approverId], references: [id], onDelete: SetNull)
+
+  @@index([branchId, status])
+  @@index([menuItemId])
+  @@index([status])
+  @@map("price_change_requests")
+}
+
+// Company Settings
+model CompanySetting {
+  id                          String   @id @default(uuid())
+  canBranchCreateMenu         Boolean  @default(false)
+  requiresApprovalForProposals Boolean @default(true)
+  allowBranchPriceOverride    Boolean  @default(true)
+  autoPropagateApprovedMenus  Boolean  @default(true)
+  targetMarginThreshold       Decimal? @db.Decimal(5, 2) // e.g., 0.30 for 30%
+  expiresSoonWarningDays      Int      @default(7) // Days before expiration to warn
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+
+  companyId String   @unique
+  company   Organization @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("company_settings")
+}
+
+// Inventory Models
+model StockEntry {
+  id          String         @id @default(uuid())
+  type        StockEntryType
+  quantity    Decimal        @db.Decimal(10, 2)
+  unitCost    Decimal        @db.Decimal(10, 2)
+  totalCost   Decimal        @db.Decimal(10, 2)
+  reference   String?        // Receipt reference, adjustment reason, etc.
+  reason      String?        // For adjustments
+  metadata    Json?           // Additional data
+  wasteReason WasteReason?
+  wasteNotes  String?
+  wasteApprovalStatus WasteApprovalStatus?
+  createdAt   DateTime       @default(now())
+
+  ingredientId String
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  batchId String?
+  batch   IngredientBatch? @relation(fields: [batchId], references: [id], onDelete: SetNull)
+
+  branchId String?
+  branch   Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+
+  wasteApproverId String?
+  wasteApprover   User? @relation("ApprovedWaste", fields: [wasteApproverId], references: [id], onDelete: SetNull)
+
+  @@index([ingredientId, createdAt])
+  @@index([batchId])
+  @@index([branchId])
+  @@index([type])
+  @@map("stock_entries")
+}
+
+model StockDeduction {
+  id            String   @id @default(uuid())
+  quantityDeducted Decimal @db.Decimal(10, 2)
+  costPerUnit   Decimal  @db.Decimal(10, 2)
+  totalCost     Decimal  @db.Decimal(10, 2)
+  reason        String?  // e.g., "order", "spoilage"
+  createdAt     DateTime @default(now())
+
+  ingredientId String
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  batchId String
+  batch   IngredientBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  orderId String? // If deducted for an order
+  recipeId String? // If deducted for a recipe
+
+  @@index([ingredientId, createdAt])
+  @@index([batchId])
+  @@index([orderId])
+  @@index([recipeId])
+  @@map("stock_deductions")
+}
+
+model CogsLedger {
+  id        String   @id @default(uuid())
+  totalCost Decimal  @db.Decimal(10, 2)
+  metadata  Json?    // Additional breakdown data
+  createdAt DateTime @default(now())
+
+  orderId String // Order that consumed ingredients
+  companyId String
+  company   Organization @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([companyId, createdAt])
+  @@map("cogs_ledger")
+}
+
+// Sync Queue for Offline Mode
+model SyncQueue {
+  id        String   @id @default(uuid())
+  action    String   // e.g., "CREATE_ORDER", "UPDATE_STOCK"
+  payload   Json     // Action-specific data
+  status    String   @default("PENDING") // PENDING, SYNCED, FAILED
+  error     String?
+  createdAt DateTime @default(now())
+  syncedAt  DateTime?
+
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@index([branchId, status])
+  @@index([status, createdAt])
+  @@map("sync_queue")
+}
+
+// Cost Simulation Models (Phase 14.5)
+model CostSimulation {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+
+  companyId String
+  company   Organization @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdBy String
+  creator   User @relation("CreatedSimulations", fields: [createdBy], references: [id], onDelete: Cascade)
+
+  ingredients CostSimulationIngredient[]
+  results     CostSimulationResult[]
+
+  @@index([companyId])
+  @@map("cost_simulations")
+}
+
+model CostSimulationIngredient {
+  id                String   @id @default(uuid())
+  simulatedUnitCost Decimal  @db.Decimal(10, 2)
+  currentUnitCost   Decimal  @db.Decimal(10, 2)
+
+  simulationId String
+  simulation   CostSimulation @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+
+  ingredientId String
+  ingredient   Ingredient @relation("SimulationIngredients", fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  @@unique([simulationId, ingredientId])
+  @@index([simulationId])
+  @@map("cost_simulation_ingredients")
+}
+
+model CostSimulationResult {
+  id             String   @id @default(uuid())
+  currentMargin  Decimal? @db.Decimal(5, 2)
+  simulatedMargin Decimal? @db.Decimal(5, 2)
+  marginChange   Decimal  @db.Decimal(5, 2) // simulatedMargin - currentMargin
+
+  simulationId String
+  simulation   CostSimulation @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+
+  menuItemId String
+  menuItem   MenuItem @relation("SimulationMenuItems", fields: [menuItemId], references: [id], onDelete: Cascade)
+
+  @@unique([simulationId, menuItemId])
+  @@index([simulationId])
+  @@map("cost_simulation_results")
+}
+
+// ============================================================================
+// Customer Management System (Transaction Customers)
+// ============================================================================
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  WHATSAPP
+  PUSH
+}
+
+enum NotificationType {
+  ORDER_CONFIRMATION
+  ORDER_READY
+  ORDER_DELIVERED
+  RECEIPT
+  PROMOTION
+  LOYALTY_UPDATE
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+}
+
+// Transaction Customer (B2C - for orders/receipts)
+model TransactionCustomer {
+  id            String   @id @default(uuid())
+  email         String?  @unique
+  phone         String?  @unique
+  firstName     String?
+  lastName      String?
+  fullName      String?  // Fallback if firstName/lastName not available
+  
+  // Auth0 for online ordering
+  auth0UserId   String?  @unique
+  emailVerified Boolean  @default(false)
+  phoneVerified Boolean  @default(false)
+  
+  // Communication preferences (global defaults)
+  emailOptIn    Boolean  @default(true)  // Marketing emails
+  smsOptIn      Boolean  @default(true)   // SMS notifications
+  whatsappOptIn Boolean @default(false)  // WhatsApp notifications
+  
+  // Common preferences
+  dietaryPreferences Json?  // Allergies, vegetarian, etc.
+  address            String?
+  dateOfBirth        DateTime?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relationships
+  organizationCustomers OrganizationCustomer[]
+  preferences          CustomerPreference[]
+  consents             CustomerConsent[]
+  notifications        CustomerNotification[]
+  // orders              Order[]  // When Order model is created
+  
+  @@index([email])
+  @@index([phone])
+  @@index([auth0UserId])
+  @@map("transaction_customers")
+}
+
+// Junction table: Customer-Organization relationship
+model OrganizationCustomer {
+  id        String   @id @default(uuid())
+  
+  customerId String
+  customer   TransactionCustomer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  branchId String?  // Optional: track which branch they frequent most
+  branch   Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  
+  // Restaurant-specific data
+  loyaltyPoints    Decimal  @default(0) @db.Decimal(10, 2)
+  totalOrders      Int      @default(0)
+  totalSpent       Decimal  @default(0) @db.Decimal(10, 2)
+  averageOrderValue Decimal @default(0) @db.Decimal(10, 2)
+  lastOrderAt      DateTime?
+  firstOrderAt     DateTime?
+  isVIP            Boolean  @default(false)
+  notes            String?  // Staff notes about this customer
+  
+  // Communication preferences (can override global)
+  emailOptIn       Boolean?  // null = use global preference
+  smsOptIn         Boolean?
+  whatsappOptIn    Boolean?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([customerId, organizationId])
+  @@index([organizationId])
+  @@index([branchId])
+  @@index([lastOrderAt])
+  @@map("organization_customers")
+}
+
+// GDPR Compliance: Consent tracking
+model CustomerConsent {
+  id        String   @id @default(uuid())
+  
+  customerId String
+  customer   TransactionCustomer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  
+  organizationId String?  // null = global consent
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Consent types
+  marketingEmails  Boolean @default(false)
+  smsNotifications Boolean @default(false)
+  whatsappMessages Boolean @default(false)
+  dataProcessing   Boolean @default(true)  // Required for orders
+  
+  // Audit trail
+  consentedAt DateTime @default(now())
+  consentMethod String  // 'POS', 'ONLINE', 'EMAIL', etc.
+  ipAddress    String?
+  userAgent    String?
+  
+  // Withdrawal
+  withdrawnAt  DateTime?
+  
+  @@unique([customerId, organizationId])
+  @@index([customerId])
+  @@index([organizationId])
+  @@map("customer_consents")
+}
+
+// Communication tracking
+model CustomerNotification {
+  id        String   @id @default(uuid())
+  
+  customerId String
+  customer   TransactionCustomer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  channel   NotificationChannel
+  type      NotificationType
+  status    NotificationStatus @default(PENDING)
+  
+  // Message content
+  subject   String?
+  body      String
+  metadata  Json?  // Order details, etc.
+  
+  sentAt      DateTime?
+  deliveredAt DateTime?
+  failedAt    DateTime?
+  errorMessage String?
+  
+  createdAt DateTime @default(now())
+  
+  @@index([customerId, organizationId])
+  @@index([status, createdAt])
+  @@map("customer_notifications")
+}
+
+// Customer preferences per organization
+model CustomerPreference {
+  id        String   @id @default(uuid())
+  
+  customerId String
+  customer   TransactionCustomer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  dietaryRestrictions Json?  // Array of restrictions
+  allergies          Json?  // Array of allergies
+  favoriteItems      Json?  // Array of favorite menu items
+  notes              String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([customerId, organizationId])
+  @@index([organizationId])
+  @@map("customer_preferences")
 }
