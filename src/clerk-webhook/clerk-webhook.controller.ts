@@ -748,8 +748,6 @@ export class ClerkWebhookController {
     const httpRequest = event.event_attributes?.http_request;
 
     const emailType = this.mapClerkEmailSlugToType(payload.slug);
-    const branding = this.extractBranding(metadata);
-
     const templateData: ClerkEmailTemplateData = {
       to: payload.to_email_address,
       subject: payload.subject,
@@ -787,7 +785,6 @@ export class ClerkWebhookController {
         : {}),
       ...(httpRequest?.client_ip ? { clientIp: httpRequest.client_ip } : {}),
       ...(httpRequest?.user_agent ? { userAgent: httpRequest.user_agent } : {}),
-      ...branding,
     };
 
     await this.queueService.addJob(
@@ -827,48 +824,6 @@ export class ClerkWebhookController {
       default:
         return ClerkEmailType.UNKNOWN;
     }
-  }
-
-  private extractBranding(metadata: Record<string, unknown>): {
-    brandColor?: string;
-    accentColor?: string;
-    buttonTextColor?: string;
-    logoUrl?: string;
-  } {
-    const theme = metadata['theme'] as
-      | {
-          primary_color?: string;
-          button_text_color?: string;
-          show_clerk_branding?: boolean;
-        }
-      | undefined;
-    const app = metadata['app'] as
-      | {
-          logo_image_url?: string;
-        }
-      | undefined;
-
-    const branding: {
-      brandColor?: string;
-      accentColor?: string;
-      buttonTextColor?: string;
-      logoUrl?: string;
-    } = {};
-
-    if (theme?.primary_color) {
-      branding.brandColor = theme.primary_color;
-      branding.accentColor = theme.primary_color;
-    }
-
-    if (theme?.button_text_color) {
-      branding.buttonTextColor = theme.button_text_color;
-    }
-
-    if (app?.logo_image_url) {
-      branding.logoUrl = app.logo_image_url;
-    }
-
-    return branding;
   }
 
   private maskEmail(email: string): string {

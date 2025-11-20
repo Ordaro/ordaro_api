@@ -27,8 +27,4 @@ export interface ClerkEmailTemplateData {
   appLogoUrl?: string;
   clientIp?: string;
   userAgent?: string;
-  brandColor?: string;
-  accentColor?: string;
-  buttonTextColor?: string;
-  logoUrl?: string;
 }
