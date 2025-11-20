@@ -8,6 +8,7 @@ import {
   Auth0ApplicationDto,
   Auth0OrganizationDto,
 } from './dto/auth0-email.dto';
+import { ClerkEmailType, ClerkEmailTemplateData } from './dto/clerk-email.dto';
 import {
   getDefaultSpamPreventionHeaders,
   validateEmailContent,
@@ -15,6 +16,7 @@ import {
   isValidEmail,
 } from './spam-prevention.util';
 import { getAuth0EmailTemplate } from './templates/auth0-email.templates';
+import { getClerkEmailTemplate } from './templates/clerk-email.templates';
 
 export interface EmailOptions {
   to: string | string[];
@@ -845,6 +847,34 @@ export class EmailService {
     } catch (error) {
       this.logger.error(
         `Failed to send Auth0 email (type: ${type}): ${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Send Clerk email (using branded templates)
+   */
+  async sendClerkEmail(
+    type: ClerkEmailType,
+    data: ClerkEmailTemplateData,
+  ): Promise<{ success: boolean; messageId?: string }> {
+    try {
+      const template = getClerkEmailTemplate(type, data);
+
+      return await this.sendTemplateEmail(data.to, template, undefined, {
+        tags: [
+          { name: 'source', value: 'clerk' },
+          { name: 'slug', value: data.slug },
+          { name: 'type', value: type },
+        ],
+        skipSpamValidation: false,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to send Clerk email (type: ${type}, slug: ${data.slug}): ${
+          error instanceof Error ? error.message : String(error)
+        }`,
       );
       throw error;
     }

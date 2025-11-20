@@ -9,6 +9,7 @@ import {
 import { UserRole } from '../auth/enums/user-role.enum';
 import { PaginationQueryDto } from '../common/dto/pagination.dto';
 import { PaginationService } from '../common/services/pagination.service';
+import { CompanySettingsService } from '../company-settings/company-settings.service';
 import { PrismaService } from '../database/prisma.service';
 import { CacheService } from '../services/cache';
 
@@ -22,6 +23,7 @@ export class BranchesService {
     private readonly prismaService: PrismaService,
     private readonly paginationService: PaginationService,
     private readonly cacheService: CacheService,
+    private readonly companySettingsService: CompanySettingsService,
   ) {}
 
   /**
@@ -83,6 +85,36 @@ export class BranchesService {
     this.logger.log(
       `Branch created: ${branch.id} in organization ${organization.id}`,
     );
+
+    // If auto-propagate enabled, create BranchMenu entries for all company menu items
+    const settings = (await this.companySettingsService.getSettings(
+      organizationId,
+    )) as { autoPropagateApprovedMenus: boolean };
+    if (settings.autoPropagateApprovedMenus) {
+      const menuItems = await this.prismaService.menuItem.findMany({
+        where: {
+          companyId: organization.id,
+          isActive: true,
+        },
+        select: { id: true },
+      });
+
+      if (menuItems.length > 0) {
+        const branchMenuData = menuItems.map((menuItem) => ({
+          branchId: branch.id,
+          menuItemId: menuItem.id,
+        }));
+
+        await this.prismaService.branchMenu.createMany({
+          data: branchMenuData,
+          skipDuplicates: true,
+        });
+
+        this.logger.log(
+          `Menu items propagated to new branch ${branch.id}: ${menuItems.length} items`,
+        );
+      }
+    }
 
     // Invalidate cache for this organization's branches
     await this.cacheService.invalidateOrganization(organizationId);

@@ -60,6 +60,11 @@ export default registerAs('app', () => {
       customClaimsNamespace: process.env['AUTH0_CUSTOM_CLAIMS_NAMESPACE'],
     },
 
+    // Clerk
+    clerk: {
+      signingSecret: process.env['CLERK_SIGNING_SECRET'],
+    },
+
     // API
     apiInternalToken: process.env['API_INTERNAL_TOKEN'],
     api: {

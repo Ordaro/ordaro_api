@@ -320,6 +320,30 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
     if (jobType.includes('ANALYTICS') || jobType.includes('REPORT')) {
       return 'analytics';
     }
+    // Cost update jobs
+    if (
+      jobType === ORDARO_JOB_TYPES.INGREDIENT_COST_UPDATE ||
+      jobType === ORDARO_JOB_TYPES.RECIPE_COST_UPDATE ||
+      jobType === ORDARO_JOB_TYPES.MENU_COST_UPDATE
+    ) {
+      return 'cost-updates';
+    }
+    // Menu cascade jobs
+    if (jobType === ORDARO_JOB_TYPES.MENU_CASCADE) {
+      return 'menu-cascade';
+    }
+    // Inventory jobs
+    if (
+      jobType === ORDARO_JOB_TYPES.INVENTORY_BATCH_CHANGE ||
+      jobType === ORDARO_JOB_TYPES.CONSUME_RECIPE_FOR_ORDER ||
+      jobType === ORDARO_JOB_TYPES.CHECK_EXPIRING_BATCHES
+    ) {
+      return 'inventory';
+    }
+    // Sync queue jobs
+    if (jobType === ORDARO_JOB_TYPES.PROCESS_SYNC_QUEUE) {
+      return 'sync';
+    }
     return 'default';
   }
 }
