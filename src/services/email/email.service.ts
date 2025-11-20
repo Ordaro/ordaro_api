@@ -625,6 +625,7 @@ export class EmailService {
   /**
    * Send email using template
    */
+
   async sendTemplateEmail(
     to: string | string[],
     template: EmailTemplate,
@@ -634,6 +635,7 @@ export class EmailService {
     let html = template.html;
     let text = template.text || this.htmlToText(html);
     let subject = template.subject;
+    const cleanSubject = subject.replace(/\n|\r/g, '');
 
     // Replace template variables
     if (variables) {
@@ -641,7 +643,7 @@ export class EmailService {
         const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'g');
         html = html.replace(regex, value);
         text = text.replace(regex, value);
-        subject = subject.replace(regex, value);
+        subject = cleanSubject.replace(regex, value);
       });
     }
 
