@@ -37,7 +37,7 @@ import {
 } from './dto';
 
 @ApiTags('Webhooks')
-@Controller('v1/clerk')
+@Controller('clerk')
 export class ClerkWebhookController {
   private readonly logger = new Logger(ClerkWebhookController.name);
   private readonly webhookSecret: string;
