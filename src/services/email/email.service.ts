@@ -634,17 +634,18 @@ export class EmailService {
   ): Promise<{ success: boolean; messageId?: string }> {
     let html = template.html;
     let text = template.text || this.htmlToText(html);
-    let subject = template.subject;
-    const cleanSubject = subject.replace(/\n|\r/g, '');
+
+    // Always clean subject first (no newlines)
+    let subject = (template.subject || '').replace(/\r?\n|\r/g, '').trim();
 
     // Replace template variables
     if (variables) {
-      Object.entries(variables).forEach(([key, value]) => {
+      for (const [key, value] of Object.entries(variables)) {
         const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'g');
         html = html.replace(regex, value);
         text = text.replace(regex, value);
-        subject = cleanSubject.replace(regex, value);
-      });
+        subject = subject.replace(regex, value); // IMPORTANT: replace on the updated subject
+      }
     }
 
     return this.sendEmail({
