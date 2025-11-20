@@ -805,25 +805,40 @@ export class ClerkWebhookController {
 
   private mapClerkEmailSlugToType(slug: string): ClerkEmailType {
     const normalized = slug.toLowerCase();
-    switch (normalized) {
-      case 'verification_code':
-      case 'email_verification':
-      case 'verify_email_code':
-        return ClerkEmailType.VERIFICATION_CODE;
-      case 'password_reset':
-      case 'reset_password':
-        return ClerkEmailType.PASSWORD_RESET;
-      case 'magic_link':
-      case 'email_link':
-        return ClerkEmailType.MAGIC_LINK;
-      case 'organization_invitation':
-      case 'organization_invite':
-        return ClerkEmailType.ORGANIZATION_INVITATION;
-      case 'welcome_email':
-        return ClerkEmailType.WELCOME_EMAIL;
-      default:
-        return ClerkEmailType.UNKNOWN;
+    if (
+      normalized.includes('verification') ||
+      normalized.includes('verify') ||
+      normalized.includes('otp')
+    ) {
+      return ClerkEmailType.VERIFICATION_CODE;
     }
+
+    if (normalized.includes('reset') || normalized.includes('password')) {
+      return ClerkEmailType.PASSWORD_RESET;
+    }
+
+    if (
+      normalized.includes('magic') ||
+      normalized.includes('signin') ||
+      normalized.includes('sign-in') ||
+      normalized.includes('link')
+    ) {
+      return ClerkEmailType.MAGIC_LINK;
+    }
+
+    if (
+      normalized.includes('invite') ||
+      normalized.includes('invitation') ||
+      normalized.includes('member')
+    ) {
+      return ClerkEmailType.ORGANIZATION_INVITATION;
+    }
+
+    if (normalized.includes('welcome')) {
+      return ClerkEmailType.WELCOME_EMAIL;
+    }
+
+    return ClerkEmailType.UNKNOWN;
   }
 
   private maskEmail(email: string): string {
