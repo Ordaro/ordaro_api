@@ -2,20 +2,37 @@ import type { ClerkEmailTemplateData } from '../dto/clerk-email.dto';
 import { ClerkEmailType } from '../dto/clerk-email.dto';
 import type { EmailTemplate } from '../email.service';
 
-const BRAND_COLOR = '#111827';
-const ACCENT_COLOR = '#2563eb';
-const LIGHT_BG = '#f3f4f6';
+const DEFAULT_TEXT_COLOR = '#1A1A1A';
+const DEFAULT_PRIMARY_COLOR = '#00387A';
+const DEFAULT_ACCENT_COLOR = '#00B9E4';
+const DEFAULT_BUTTON_TEXT = '#FFFFFF';
+const PAGE_BACKGROUND = '#F7F9FC';
+const CARD_BACKGROUND = '#FFFFFF';
+const BORDER_COLOR = '#E2E8F0';
+const MUTED_TEXT_COLOR = '#5F6B7A';
 
 function wrapTemplate({
   title,
   body,
   subject,
   previewText,
+  branding,
 }: {
   title: string;
   body: string;
   subject: string;
   previewText?: string;
+  branding: {
+    textColor: string;
+    primaryColor: string;
+    accentColor: string;
+    buttonTextColor: string;
+    logoUrl?: string;
+    pageBg: string;
+    cardBg: string;
+    borderColor: string;
+    mutedText: string;
+  };
 }): EmailTemplate {
   const html = `
     <!DOCTYPE html>
@@ -28,9 +45,9 @@ function wrapTemplate({
           body {
             margin: 0;
             padding: 0;
-            background-color: ${LIGHT_BG};
+            background-color: ${branding.pageBg};
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            color: ${BRAND_COLOR};
+            color: ${branding.textColor};
           }
           .preview-text {
             display: none;
@@ -46,16 +63,18 @@ function wrapTemplate({
             padding: 32px 16px;
           }
           .card {
-            background: #ffffff;
+            background: ${branding.cardBg};
             border-radius: 20px;
             padding: 40px 32px;
             box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
+            border: 1px solid ${branding.borderColor};
           }
           .title {
             font-size: 26px;
             line-height: 34px;
             margin: 0;
             font-weight: 700;
+            color: ${branding.primaryColor};
           }
           .text {
             font-size: 15px;
@@ -71,8 +90,8 @@ function wrapTemplate({
           .button {
             display: inline-block;
             padding: 14px 28px;
-            background: ${ACCENT_COLOR};
-            color: #ffffff;
+            background: ${branding.accentColor};
+            color: ${branding.buttonTextColor};
             text-decoration: none;
             border-radius: 999px;
             font-weight: 600;
@@ -81,15 +100,15 @@ function wrapTemplate({
           .meta {
             margin-top: 32px;
             padding-top: 24px;
-            border-top: 1px solid ${LIGHT_BG};
+            border-top: 1px solid ${branding.borderColor};
             font-size: 13px;
-            color: #6b7280;
+            color: ${branding.mutedText};
           }
           .footer {
             text-align: center;
             margin-top: 24px;
             font-size: 13px;
-            color: #6b7280;
+            color: ${branding.mutedText};
           }
         </style>
       </head>
@@ -97,6 +116,11 @@ function wrapTemplate({
         <span class="preview-text">${previewText ?? ''}</span>
         <div class="container">
           <div class="card">
+            ${
+              branding.logoUrl
+                ? `<div style="margin-bottom: 32px;"><img src="${branding.logoUrl}" alt="Logo" style="height: 40px; max-width: 160px;"/></div>`
+                : ''
+            }
             <h1 class="title">${title}</h1>
             ${body}
           </div>
@@ -136,6 +160,7 @@ function verificationCodeTemplate(data: ClerkEmailTemplateData): EmailTemplate {
     subject: data.subject || preview,
     body,
     previewText: preview,
+    branding: normalizeBranding(data),
   });
 }
 
@@ -174,6 +199,7 @@ function passwordResetTemplate(data: ClerkEmailTemplateData): EmailTemplate {
     subject: data.subject || preview,
     body,
     previewText: preview,
+    branding: normalizeBranding(data),
   });
 }
 
@@ -212,6 +238,7 @@ function magicLinkTemplate(data: ClerkEmailTemplateData): EmailTemplate {
     subject: data.subject || preview,
     body,
     previewText: preview,
+    branding: normalizeBranding(data),
   });
 }
 
@@ -244,6 +271,7 @@ function organizationInvitationTemplate(
     subject: data.subject || preview,
     body,
     previewText: preview,
+    branding: normalizeBranding(data),
   });
 }
 
@@ -271,6 +299,7 @@ function welcomeTemplate(data: ClerkEmailTemplateData): EmailTemplate {
     subject: data.subject || preview,
     body,
     previewText: preview,
+    branding: normalizeBranding(data),
   });
 }
 
@@ -297,6 +326,7 @@ function fallbackTemplate(data: ClerkEmailTemplateData): EmailTemplate {
     subject: data.subject,
     body,
     previewText: data.subject,
+    branding: normalizeBranding(data),
   });
 }
 
@@ -319,4 +349,30 @@ export function getClerkEmailTemplate(
     default:
       return fallbackTemplate(data);
   }
+}
+
+function normalizeBranding(data: ClerkEmailTemplateData): {
+  textColor: string;
+  primaryColor: string;
+  accentColor: string;
+  buttonTextColor: string;
+  logoUrl?: string;
+  pageBg: string;
+  cardBg: string;
+  borderColor: string;
+  mutedText: string;
+} {
+  return {
+    textColor: data.brandColor || data.accentColor || DEFAULT_TEXT_COLOR,
+    primaryColor: data.brandColor || DEFAULT_PRIMARY_COLOR,
+    accentColor: data.accentColor || data.brandColor || DEFAULT_ACCENT_COLOR,
+    buttonTextColor: data.buttonTextColor || DEFAULT_BUTTON_TEXT,
+    ...(data.logoUrl || data.appLogoUrl
+      ? { logoUrl: data.logoUrl || data.appLogoUrl }
+      : {}),
+    pageBg: PAGE_BACKGROUND,
+    cardBg: CARD_BACKGROUND,
+    borderColor: BORDER_COLOR,
+    mutedText: MUTED_TEXT_COLOR,
+  };
 }
