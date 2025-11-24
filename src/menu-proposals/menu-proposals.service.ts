@@ -41,7 +41,7 @@ export class MenuProposalsService {
     companyId: string,
   ): Promise<unknown> {
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: companyId },
+      where: { clerkOrgId: companyId },
     });
 
     if (!organization) {
@@ -114,7 +114,7 @@ export class MenuProposalsService {
     dto?: ApproveProposalDto,
   ): Promise<unknown> {
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: companyId },
+      where: { clerkOrgId: companyId },
     });
 
     if (!organization) {
@@ -134,7 +134,7 @@ export class MenuProposalsService {
     }
 
     const approver = await this.prismaService.user.findUnique({
-      where: { auth0UserId: approverId },
+      where: { clerkUserId: approverId },
     });
 
     if (!approver) {
@@ -222,7 +222,7 @@ export class MenuProposalsService {
     companyId: string,
   ): Promise<unknown> {
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: companyId },
+      where: { clerkOrgId: companyId },
     });
 
     if (!organization) {
@@ -242,7 +242,7 @@ export class MenuProposalsService {
     }
 
     const approver = await this.prismaService.user.findUnique({
-      where: { auth0UserId: approverId },
+      where: { clerkUserId: approverId },
     });
 
     if (!approver) {
@@ -277,7 +277,7 @@ export class MenuProposalsService {
     paginationQuery?: PaginationQueryDto,
   ): Promise<unknown> {
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: companyId },
+      where: { clerkOrgId: companyId },
     });
 
     if (!organization) {

@@ -84,7 +84,7 @@ export class CacheInterceptor implements NestInterceptor {
     // Try to get user from request (set by Auth0Guard)
     const user = (
       request as Request & {
-        user?: { organizationId?: string; auth0Id?: string };
+        user?: { organizationId?: string; clerkUserId?: string };
       }
     ).user;
 
@@ -94,8 +94,8 @@ export class CacheInterceptor implements NestInterceptor {
     }
 
     // Add user ID if requested
-    if (options.includeUser && user?.auth0Id) {
-      parts.push(`user:${user.auth0Id}`);
+    if (options.includeUser && user?.clerkUserId) {
+      parts.push(`user:${user.clerkUserId}`);
     }
 
     // Add URL path

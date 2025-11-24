@@ -36,7 +36,7 @@ export class BranchesService {
   ) {
     // Get organization from database
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: organizationId },
+      where: { clerkOrgId: organizationId },
     });
 
     if (!organization) {
@@ -69,7 +69,7 @@ export class BranchesService {
 
     // Get creator user from database
     const creatorUser = await this.prismaService.user.findUnique({
-      where: { auth0UserId: creatorUserId },
+      where: { clerkUserId: creatorUserId },
     });
 
     // If creator is a Manager, automatically assign them to this branch
@@ -135,7 +135,7 @@ export class BranchesService {
 
     // Get organization
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: organizationId },
+      where: { clerkOrgId: organizationId },
     });
 
     if (!organization) {
@@ -182,7 +182,7 @@ export class BranchesService {
 
     // Other roles: only see assigned branches
     const user = await this.prismaService.user.findUnique({
-      where: { auth0UserId: userId },
+      where: { clerkUserId: userId },
       include: {
         branches: {
           where: {
@@ -228,7 +228,7 @@ export class BranchesService {
    */
   async findOne(id: string, organizationId: string) {
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: organizationId },
+      where: { clerkOrgId: organizationId },
     });
 
     if (!organization) {
@@ -246,7 +246,7 @@ export class BranchesService {
             user: {
               select: {
                 id: true,
-                auth0UserId: true,
+                clerkUserId: true,
                 email: true,
                 name: true,
                 role: true,
@@ -273,7 +273,7 @@ export class BranchesService {
     organizationId: string,
   ) {
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: organizationId },
+      where: { clerkOrgId: organizationId },
     });
 
     if (!organization) {
@@ -325,11 +325,11 @@ export class BranchesService {
   async getBranchUsers(
     branchId: string,
     organizationId: string,
-    requesterAuth0Id: string,
+    requesterClerkId: string,
     requesterRole: UserRole,
   ) {
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: organizationId },
+      where: { clerkOrgId: organizationId },
     });
 
     if (!organization) {
@@ -354,7 +354,7 @@ export class BranchesService {
       requesterRole !== UserRole.MANAGER
     ) {
       const requesterUser = await this.prismaService.user.findUnique({
-        where: { auth0UserId: requesterAuth0Id },
+        where: { clerkUserId: requesterClerkId },
       });
 
       if (!requesterUser) {
@@ -385,7 +385,7 @@ export class BranchesService {
         user: {
           select: {
             id: true,
-            auth0UserId: true,
+            clerkUserId: true,
             email: true,
             name: true,
             phone: true,
@@ -408,7 +408,7 @@ export class BranchesService {
       branchAddress: branch.address,
       users: userBranches.map((ub) => ({
         id: ub.user.id,
-        auth0UserId: ub.user.auth0UserId,
+        clerkUserId: ub.user.clerkUserId,
         email: ub.user.email,
         name: ub.user.name,
         phone: ub.user.phone,
@@ -427,7 +427,7 @@ export class BranchesService {
    */
   async remove(id: string, organizationId: string) {
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: organizationId },
+      where: { clerkOrgId: organizationId },
     });
 
     if (!organization) {

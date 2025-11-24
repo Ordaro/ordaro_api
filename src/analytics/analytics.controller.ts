@@ -17,7 +17,7 @@ import {
 
 import { CurrentUser, Roles, requiresOrganization } from '../auth/decorators';
 import { UserRole } from '../auth/enums/user-role.enum';
-import { Auth0Guard, RolesGuard } from '../auth/guards';
+import { ClerkGuard, RolesGuard } from '../auth/guards';
 import type { UserPayload } from '../auth/interfaces';
 
 import { AnalyticsService } from './analytics.service';
@@ -25,7 +25,7 @@ import { AnalyticsService } from './analytics.service';
 @ApiTags('Analytics')
 @ApiBearerAuth('Auth0')
 @Controller('analytics')
-@UseGuards(Auth0Guard)
+@UseGuards(ClerkGuard)
 export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 

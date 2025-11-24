@@ -35,7 +35,7 @@ export class RecipesService {
     companyId: string,
   ): Promise<unknown> {
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: companyId },
+      where: { clerkOrgId: companyId },
     });
 
     if (!organization) {
@@ -152,7 +152,7 @@ export class RecipesService {
    */
   async recalculateCost(recipeId: string, companyId: string): Promise<unknown> {
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: companyId },
+      where: { clerkOrgId: companyId },
     });
 
     if (!organization) {
@@ -255,7 +255,7 @@ export class RecipesService {
    */
   async getRecipeDetails(id: string, companyId: string): Promise<unknown> {
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: companyId },
+      where: { clerkOrgId: companyId },
     });
 
     if (!organization) {
@@ -298,7 +298,7 @@ export class RecipesService {
     companyId: string,
   ): Promise<unknown> {
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: companyId },
+      where: { clerkOrgId: companyId },
     });
 
     if (!organization) {
@@ -477,7 +477,7 @@ export class RecipesService {
     companyId: string,
   ): Promise<unknown> {
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: companyId },
+      where: { clerkOrgId: companyId },
     });
 
     if (!organization) {
@@ -535,7 +535,7 @@ export class RecipesService {
     const { limit = 20, cursor, orderDir = 'desc' } = paginationQuery;
 
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: companyId },
+      where: { clerkOrgId: companyId },
     });
 
     if (!organization) {
@@ -576,7 +576,7 @@ export class RecipesService {
    */
   async deleteRecipe(id: string, companyId: string): Promise<unknown> {
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: companyId },
+      where: { clerkOrgId: companyId },
     });
 
     if (!organization) {

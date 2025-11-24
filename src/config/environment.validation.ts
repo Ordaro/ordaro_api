@@ -123,6 +123,28 @@ export class EnvironmentVariables {
   @IsString()
   AUTH0_EMAIL_API_KEY!: string;
 
+  // Clerk
+  @IsString()
+  CLERK_SECRET_KEY!: string;
+
+  @IsString()
+  CLERK_PUBLISHABLE_KEY!: string;
+
+  @IsString()
+  CLERK_SIGNING_SECRET!: string;
+
+  @IsString()
+  CLERK_ISSUER_URL!: string;
+
+  @IsString()
+  CLERK_JWT_AUDIENCE!: string;
+
+  @IsString()
+  CLERK_JWT_TEMPLATE_ID!: string;
+
+  @IsString()
+  CLERK_FRONTEND_API!: string;
+
   @IsString()
   API_INTERNAL_TOKEN!: string;
 

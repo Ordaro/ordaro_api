@@ -35,7 +35,7 @@ export class IngredientsService {
     companyId: string,
   ): Promise<unknown> {
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: companyId },
+      where: { clerkOrgId: companyId },
     });
 
     if (!organization) {
@@ -117,7 +117,7 @@ export class IngredientsService {
     companyId: string,
   ): Promise<unknown> {
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: companyId },
+      where: { clerkOrgId: companyId },
     });
 
     if (!organization) {
@@ -214,7 +214,7 @@ export class IngredientsService {
     const { limit = 20, cursor, orderDir = 'desc' } = paginationQuery;
 
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: companyId },
+      where: { clerkOrgId: companyId },
     });
 
     if (!organization) {
@@ -255,7 +255,7 @@ export class IngredientsService {
    */
   async getIngredientById(id: string, companyId: string): Promise<unknown> {
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: companyId },
+      where: { clerkOrgId: companyId },
     });
 
     if (!organization) {
@@ -297,7 +297,7 @@ export class IngredientsService {
    */
   async deleteIngredient(id: string, companyId: string): Promise<unknown> {
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: companyId },
+      where: { clerkOrgId: companyId },
     });
 
     if (!organization) {

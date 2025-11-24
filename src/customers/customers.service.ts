@@ -409,10 +409,10 @@ export class CustomersService {
   }
 
   /**
-   * Get customer by Auth0 user ID (for online ordering)
+   * Get customer by Clerk user ID (for online ordering)
    */
-  async getCustomerByAuth0(
-    auth0UserId: string,
+  async getCustomerByClerk(
+    clerkUserId: string,
   ): Promise<null | Prisma.TransactionCustomerGetPayload<{
     include: {
       organizationCustomers: true;
@@ -420,7 +420,7 @@ export class CustomersService {
     };
   }>> {
     const customer = await this.prismaService.transactionCustomer.findUnique({
-      where: { auth0UserId },
+      where: { clerkUserId },
       include: {
         organizationCustomers: true,
         preferences: true,
@@ -431,27 +431,27 @@ export class CustomersService {
   }
 
   /**
-   * Create customer from Auth0 user (online ordering)
+   * Create customer from Clerk user (online ordering)
    */
-  async createCustomerFromAuth0(
-    auth0UserId: string,
-    auth0Email: string,
-    auth0Name: string | undefined,
+  async createCustomerFromClerk(
+    clerkUserId: string,
+    clerkEmail: string,
+    clerkName: string | undefined,
     organizationId: string,
   ): Promise<unknown> {
     // Check if customer already exists by email
-    const normalizedEmail = normalizeEmail(auth0Email);
+    const normalizedEmail = normalizeEmail(clerkEmail);
     let customer = await this.prismaService.transactionCustomer.findUnique({
       where: { email: normalizedEmail },
     });
 
     if (customer) {
-      // Link Auth0 if not already linked
-      if (!customer.auth0UserId) {
+      // Link Clerk if not already linked
+      if (!customer.clerkUserId) {
         customer = await this.prismaService.transactionCustomer.update({
           where: { id: customer.id },
           data: {
-            auth0UserId,
+            clerkUserId,
             emailVerified: true,
           },
         });
@@ -462,9 +462,9 @@ export class CustomersService {
       return customer;
     }
 
-    // Check if customer exists by Auth0 ID
+    // Check if customer exists by Clerk ID
     customer = await this.prismaService.transactionCustomer.findUnique({
-      where: { auth0UserId },
+      where: { clerkUserId },
     });
 
     if (customer) {
@@ -474,7 +474,7 @@ export class CustomersService {
     }
 
     // Parse name
-    const nameParts = auth0Name?.split(' ') ?? [];
+    const nameParts = clerkName?.split(' ') ?? [];
     const firstName = nameParts[0] ?? null;
     const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : null;
 
@@ -482,10 +482,10 @@ export class CustomersService {
     customer = await this.prismaService.transactionCustomer.create({
       data: {
         email: normalizedEmail,
-        auth0UserId,
+        clerkUserId,
         firstName,
         lastName,
-        fullName: auth0Name ?? null,
+        fullName: clerkName ?? null,
         emailVerified: true,
         emailOptIn: true,
         smsOptIn: true,
@@ -509,17 +509,17 @@ export class CustomersService {
     await this.linkCustomerToOrganization(customer.id, organizationId);
 
     this.logger.log(
-      `Customer created from Auth0: ${customer.id} for organization ${organizationId}`,
+      `Customer created from Clerk: ${customer.id} for organization ${organizationId}`,
     );
 
     return customer;
   }
 
   /**
-   * Link Auth0 to existing customer
+   * Link Clerk to existing customer
    */
-  async linkAuth0ToCustomer(
-    auth0UserId: string,
+  async linkClerkToCustomer(
+    clerkUserId: string,
     customerId: string,
   ): Promise<unknown> {
     const customer = await this.prismaService.transactionCustomer.findUnique({
@@ -530,15 +530,15 @@ export class CustomersService {
       throw new NotFoundException('Customer not found');
     }
 
-    // Check if Auth0 ID already linked to another customer
-    if (auth0UserId) {
+    // Check if Clerk ID already linked to another customer
+    if (clerkUserId) {
       const existing = await this.prismaService.transactionCustomer.findUnique({
-        where: { auth0UserId },
+        where: { clerkUserId },
       });
 
       if (existing && existing.id !== customerId) {
         throw new ConflictException(
-          'This Auth0 account is already linked to another customer',
+          'This Clerk account is already linked to another customer',
         );
       }
     }
@@ -546,12 +546,12 @@ export class CustomersService {
     const updated = await this.prismaService.transactionCustomer.update({
       where: { id: customerId },
       data: {
-        auth0UserId,
+        clerkUserId,
         emailVerified: true,
       },
     });
 
-    this.logger.log(`Auth0 ${auth0UserId} linked to customer ${customerId}`);
+    this.logger.log(`Clerk ${clerkUserId} linked to customer ${customerId}`);
 
     return updated;
   }

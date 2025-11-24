@@ -17,7 +17,7 @@ import {
 
 import { CurrentUser, Roles, requiresOrganization } from '../auth/decorators';
 import { UserRole } from '../auth/enums/user-role.enum';
-import { Auth0Guard, RolesGuard } from '../auth/guards';
+import { ClerkGuard, RolesGuard } from '../auth/guards';
 import type { UserPayload } from '../auth/interfaces';
 import { PaginationQueryDto } from '../common/dto/pagination.dto';
 
@@ -31,7 +31,7 @@ import { MenuProposalsService } from './menu-proposals.service';
 @ApiTags('Menu Proposals')
 @ApiBearerAuth('Auth0')
 @Controller('menu-proposals')
-@UseGuards(Auth0Guard)
+@UseGuards(ClerkGuard)
 export class MenuProposalsController {
   constructor(private readonly menuProposalsService: MenuProposalsService) {}
 
@@ -97,7 +97,7 @@ export class MenuProposalsController {
     requiresOrganization(user);
     return this.menuProposalsService.approveProposal(
       id,
-      user.auth0Id,
+      user.clerkUserId,
       user.organizationId,
       approveProposalDto,
     );
@@ -120,7 +120,7 @@ export class MenuProposalsController {
     requiresOrganization(user);
     return this.menuProposalsService.rejectProposal(
       id,
-      user.auth0Id,
+      user.clerkUserId,
       rejectProposalDto,
       user.organizationId,
     );

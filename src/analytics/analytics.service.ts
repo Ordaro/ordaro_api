@@ -16,7 +16,7 @@ export class AnalyticsService {
     to?: Date,
   ): Promise<unknown> {
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: companyId },
+      where: { clerkOrgId: companyId },
     });
 
     if (!organization) {
@@ -72,7 +72,7 @@ export class AnalyticsService {
    */
   async inventoryValuation(companyId: string): Promise<unknown> {
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: companyId },
+      where: { clerkOrgId: companyId },
     });
 
     if (!organization) {
@@ -126,7 +126,7 @@ export class AnalyticsService {
    */
   async menuMarginReport(companyId: string): Promise<unknown> {
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: companyId },
+      where: { clerkOrgId: companyId },
     });
 
     if (!organization) {
@@ -197,7 +197,7 @@ export class AnalyticsService {
     periodDays = 30,
   ): Promise<unknown> {
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: companyId },
+      where: { clerkOrgId: companyId },
     });
 
     if (!organization) {

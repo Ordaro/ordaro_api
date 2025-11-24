@@ -8,7 +8,7 @@ import {
 
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../auth/enums/user-role.enum';
-import { Auth0Guard } from '../auth/guards/auth0.guard';
+import { ClerkGuard } from '../auth/guards/clerk.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { PrismaService } from '../database/prisma.service';
 
@@ -18,7 +18,7 @@ export class MonitoringController {
   constructor(private readonly prismaService: PrismaService) {}
 
   @Get('invitation-stats')
-  @UseGuards(Auth0Guard, RolesGuard)
+  @UseGuards(ClerkGuard, RolesGuard)
   @Roles(UserRole.OWNER)
   @ApiBearerAuth('Auth0')
   @ApiOperation({ summary: 'Get invitation statistics' })

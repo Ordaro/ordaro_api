@@ -5,11 +5,10 @@ import {
   InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import slugify from '@sindresorhus/slugify';
 
 import { UserRole } from '../auth/enums/user-role.enum';
-import { Auth0ManagementService } from '../auth/services/auth0-management.service';
+import { ClerkManagementService } from '../auth/services/clerk-management.service';
 import { extractErrorInfo } from '../common/utils/error.util';
 import { PrismaService } from '../database/prisma.service';
 
@@ -20,12 +19,11 @@ export class OrganizationsService {
 
   constructor(
     private readonly prismaService: PrismaService,
-    private readonly auth0ManagementService: Auth0ManagementService,
-    private readonly configService: ConfigService,
+    private readonly clerkManagementService: ClerkManagementService,
   ) {}
 
   /**
-   * Create a new organization (in both Auth0 and our DB) and assign the creator as Owner.
+   * Create a new organization (in both Clerk and our DB) and assign the creator as Owner.
    * Ensures slug uniqueness and handles error scenarios.
    */
   async create(
@@ -48,45 +46,27 @@ export class OrganizationsService {
       );
     }
 
-    // Prepare owner role ID
-    const ownerRoleId = this.configService.get<string>('app.auth0.roles.owner');
-    if (!ownerRoleId) {
-      this.logger.error(`Configuration error: Auth0 owner role ID not set`, {
-        dto,
-        userId,
-      });
-      throw new InternalServerErrorException(
-        `Server misconfiguration: missing owner role`,
-      );
-    }
-
-    let auth0OrgId: string;
+    let clerkOrgId: string;
 
     try {
-      // 1. Create in Auth0
-      auth0OrgId = await this.auth0ManagementService.createOrganization(
-        slug,
+      // 1. Create in Clerk
+      clerkOrgId = await this.clerkManagementService.createOrganization(
         name,
-      );
-
-      // 2. Add user as member
-      await this.auth0ManagementService.addMemberToOrganization(
-        auth0OrgId,
         userId,
       );
 
-      // 3. Assign Owner role in Auth0
-      await this.auth0ManagementService.assignRoleToUser(
-        auth0OrgId,
-        userId,
-        ownerRoleId,
-      );
-
-      // 4. Add user to default connection
-      // after creating org, etc.
+      // 2. Add user as member with Owner role
+      // const ownerRole = this.clerkManagementService.mapUserRoleToClerkRole(
+      //   UserRole.OWNER,
+      // );
+      // await this.clerkManagementService.addMemberToOrganization(
+      //   clerkOrgId,
+      //   userId,
+      //   ownerRole,
+      // );
     } catch (err) {
-      // If Auth0 operation fails, you might consider cleaning up (delete org) or logging for later cleanup
-      this.logger.error('Auth0 operation failed during organization creation', {
+      // If Clerk operation fails, you might consider cleaning up (delete org) or logging for later cleanup
+      this.logger.error('Clerk operation failed during organization creation', {
         dto,
         userId,
         error: err,
@@ -102,7 +82,7 @@ export class OrganizationsService {
       // Create the organization FIRST (user requires organizationId foreign key)
       const organization = await this.prismaService.organization.create({
         data: {
-          auth0OrgId,
+          clerkOrgId,
           name,
           slug,
           ...(logoUrl && { logoUrl }),
@@ -115,9 +95,9 @@ export class OrganizationsService {
       // Then upsert the user with the organization ID
       // This handles both new users and existing users (who might have logged in before org creation)
       await this.prismaService.user.upsert({
-        where: { auth0UserId: userId },
+        where: { clerkUserId: userId },
         create: {
-          auth0UserId: userId,
+          clerkUserId: userId,
           email: userEmail,
           ...(userName && { name: userName }),
           role: UserRole.OWNER,
@@ -135,13 +115,15 @@ export class OrganizationsService {
         `Organization ${organization.id} created for user ${userId}`,
         {
           orgId: organization.id,
-          auth0OrgId,
+          clerkOrgId,
           userId,
         },
       );
       const authParams = new URLSearchParams({
-        organization: organization.auth0OrgId,
         returnTo: '/',
+        ...(organization.clerkOrgId
+          ? { organization: organization.clerkOrgId }
+          : {}),
       });
 
       const redirectUrl = `/auth/login?${authParams.toString()}`;
@@ -150,14 +132,13 @@ export class OrganizationsService {
         redirectUrl,
       };
     } catch (dbError) {
-      this.logger.error('Database error when saving organization', {
+      this.logger.error('Database errr when saving organization', {
         dto,
         userId,
-        auth0OrgId,
+        clerkOrgId,
         error: dbError,
       });
-      // Optionally: try to rollback Auth0 creation if possible
-      // e.g. await this.auth0ManagementService.deleteOrganization(auth0OrgId);
+      // Optionally: try to rollback Clerk creation if possible
       throw new InternalServerErrorException(
         `Failed to save organization in database.`,
       );
@@ -175,7 +156,7 @@ export class OrganizationsService {
     try {
       this.logger.log(`Fetching organizations for user: ${uid}`);
 
-      const orgs = await this.auth0ManagementService.getUserOrganizations(uid);
+      const orgs = await this.clerkManagementService.getUserOrganizations(uid);
 
       // Add redirect URL for each organization
       const orgsWithRedirects = orgs.map((org) => {
@@ -187,7 +168,9 @@ export class OrganizationsService {
         const redirectUrl = `/auth/login?${authParams.toString()}`;
 
         return {
-          ...org,
+          id: org.id,
+          name: org.name,
+          display_name: org.name,
           redirectUrl,
         };
       });
@@ -289,16 +272,16 @@ export class OrganizationsService {
   }
 
   /**
-   * Find by Auth0 organization ID (your local DB mapping)
+   * Find by Clerk organization ID (your local DB mapping)
    */
-  async findByAuth0OrgId(auth0OrgId: string) {
+  async findByClerkOrgId(clerkOrgId: string) {
     // Optionally throw if not found
     const org = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId },
+      where: { clerkOrgId },
     });
     if (!org) {
       throw new NotFoundException(
-        `Local organization mapping for Auth0 ID ${auth0OrgId} not found`,
+        `Local organization mapping for Clerk ID ${clerkOrgId} not found`,
       );
     }
     return org;

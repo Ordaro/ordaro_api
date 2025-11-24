@@ -20,7 +20,7 @@ export class CompanySettingsService {
    */
   async getSettings(companyId: string): Promise<unknown> {
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: companyId },
+      where: { clerkOrgId: companyId },
     });
 
     if (!organization) {
@@ -57,7 +57,7 @@ export class CompanySettingsService {
     dto: UpdateSettingsDto,
   ): Promise<unknown> {
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: companyId },
+      where: { clerkOrgId: companyId },
     });
 
     if (!organization) {

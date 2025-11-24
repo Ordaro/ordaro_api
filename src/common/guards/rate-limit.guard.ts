@@ -61,9 +61,10 @@ export class RateLimitGuard implements CanActivate {
     }
 
     // Default: rate limit by IP + user (if authenticated)
-    const user = (request as Request & { user?: { auth0Id?: string } }).user;
+    const user = (request as Request & { user?: { clerkUserId?: string } })
+      .user;
     const ip = request.ip || request.socket.remoteAddress || 'unknown';
-    const userId = user?.auth0Id || 'anonymous';
+    const userId = user?.clerkUserId || 'anonymous';
 
     return `ratelimit:${ip}:${userId}`;
   }

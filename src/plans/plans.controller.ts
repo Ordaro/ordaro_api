@@ -21,7 +21,7 @@ import {
 
 import { CurrentUser, Roles } from '../auth/decorators';
 import { UserRole } from '../auth/enums/user-role.enum';
-import { Auth0Guard, RolesGuard } from '../auth/guards';
+import { ClerkGuard, RolesGuard } from '../auth/guards';
 import type { UserPayload } from '../auth/interfaces';
 import { PaginationQueryDto } from '../common/dto/pagination.dto';
 
@@ -38,7 +38,7 @@ export class PlansController {
    * Platform Admin only (Owner role with internal access)
    */
   @Post()
-  @UseGuards(Auth0Guard, RolesGuard)
+  @UseGuards(ClerkGuard, RolesGuard)
   @Roles(UserRole.OWNER)
   @ApiBearerAuth('Auth0')
   @ApiOperation({
@@ -114,7 +114,7 @@ export class PlansController {
    * Platform Admin only (Owner role with internal access)
    */
   @Patch(':id')
-  @UseGuards(Auth0Guard, RolesGuard)
+  @UseGuards(ClerkGuard, RolesGuard)
   @Roles(UserRole.OWNER)
   @ApiBearerAuth('Auth0')
   @ApiOperation({
@@ -147,7 +147,7 @@ export class PlansController {
    * Platform Admin only (Owner role with internal access)
    */
   @Delete(':id')
-  @UseGuards(Auth0Guard, RolesGuard)
+  @UseGuards(ClerkGuard, RolesGuard)
   @Roles(UserRole.OWNER)
   @ApiBearerAuth('Auth0')
   @HttpCode(HttpStatus.NO_CONTENT)

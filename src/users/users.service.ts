@@ -6,10 +6,9 @@ import {
   ConflictException,
   Logger,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 
 import { UserRole } from '../auth/enums/user-role.enum';
-import { Auth0ManagementService } from '../auth/services/auth0-management.service';
+import { ClerkManagementService } from '../auth/services/clerk-management.service';
 import { PaginationQueryDto } from '../common/dto/pagination.dto';
 import { PaginationService } from '../common/services/pagination.service';
 import { PrismaService } from '../database/prisma.service';
@@ -24,8 +23,7 @@ export class UsersService {
 
   constructor(
     private readonly prismaService: PrismaService,
-    private readonly auth0ManagementService: Auth0ManagementService,
-    private readonly configService: ConfigService,
+    private readonly clerkManagementService: ClerkManagementService,
     private readonly paginationService: PaginationService,
     private readonly cacheService: CacheService,
     private readonly queueService: QueueService,
@@ -63,7 +61,7 @@ export class UsersService {
 
     // Get organization
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: organizationId },
+      where: { clerkOrgId: organizationId },
     });
 
     if (!organization) {
@@ -105,39 +103,29 @@ export class UsersService {
       );
     }
 
-    // Get role ID from config
-    const roleIdMap = {
-      [UserRole.OWNER]: this.configService.get<string>('app.auth0.roles.owner'),
-      [UserRole.MANAGER]: this.configService.get<string>(
-        'app.auth0.roles.manager',
-      ),
-      [UserRole.WAITER]: this.configService.get<string>(
-        'app.auth0.roles.waiter',
-      ),
-      [UserRole.CHEF]: this.configService.get<string>('app.auth0.roles.chef'),
-    };
+    // Map role to Clerk role
+    const clerkRole = this.clerkManagementService.mapUserRoleToClerkRole(role);
 
-    const roleId = roleIdMap[role];
-
-    if (!roleId) {
-      throw new BadRequestException('Invalid role');
-    }
-
-    // Create invitation in Auth0
-    this.logger.log('Creating Auth0 invitation', {
+    // Create invitation in Clerk with branch ID in public metadata
+    this.logger.log('Creating Clerk invitation', {
       organizationId,
       email,
-      roleId,
+      clerkRole,
+      branchId,
     });
 
-    const invitation = await this.auth0ManagementService.createInvitation(
+    const invitation = await this.clerkManagementService.createInvitation(
       organizationId,
       email,
-      inviterName,
-      roleId,
+      clerkRole,
+      {
+        branchId,
+        role,
+        organizationId: organization.id,
+      },
     );
 
-    this.logger.log('Auth0 invitation created', {
+    this.logger.log('Clerk invitation created', {
       invitationId: invitation.id,
       email,
       duration: Date.now() - startTime,
@@ -146,7 +134,7 @@ export class UsersService {
     // Store invitation in database
     const dbInvitation = await this.prismaService.invitation.create({
       data: {
-        auth0InvitationId: invitation.id,
+        clerkInvitationId: invitation.id,
         email: email,
         role: role,
         organizationId: organization.id,
@@ -157,7 +145,7 @@ export class UsersService {
 
     this.logger.log('Invitation saved to database', {
       dbInvitationId: dbInvitation.id,
-      auth0InvitationId: invitation.id,
+      clerkInvitationId: invitation.id,
       email,
       role,
       branchId,
@@ -173,7 +161,7 @@ export class UsersService {
       ORDARO_JOB_TYPES.SEND_INVITATION_EMAIL,
       {
         email,
-        invitationUrl: invitation.ticket_url,
+        invitationUrl: invitation.url,
         inviterName: inviterName,
         organizationName: organization.name,
       },
@@ -185,7 +173,7 @@ export class UsersService {
 
     return {
       invitationId: dbInvitation.id,
-      invitationUrl: invitation.ticket_url,
+      invitationUrl: invitation.url,
       expiresAt: dbInvitation.expiresAt,
     };
   }
@@ -200,7 +188,7 @@ export class UsersService {
     const { limit = 20, cursor, orderDir = 'desc' } = paginationQuery;
 
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: organizationId },
+      where: { clerkOrgId: organizationId },
     });
 
     if (!organization) {
@@ -246,7 +234,7 @@ export class UsersService {
 
     const mappedUsers = users.map((user) => ({
       id: user.id,
-      auth0UserId: user.auth0UserId,
+      clerkUserId: user.clerkUserId,
       email: user.email,
       name: user.name,
       phone: user.phone,
@@ -279,7 +267,7 @@ export class UsersService {
     }
 
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: organizationId },
+      where: { clerkOrgId: organizationId },
     });
 
     if (!organization) {
@@ -330,7 +318,7 @@ export class UsersService {
     this.logger.log(`Updated branch assignments for user ${userId}`);
 
     // Invalidate cache for this user and organization
-    await this.cacheService.invalidateUser(user.auth0UserId);
+    await this.cacheService.invalidateUser(user.clerkUserId ?? '');
     await this.cacheService.invalidateOrganization(organizationId);
 
     return {
@@ -346,11 +334,11 @@ export class UsersService {
   async getUserBranches(
     userId: string,
     organizationId: string,
-    requesterAuth0Id: string,
+    requesterClerkId: string,
     requesterRole: UserRole,
   ) {
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: organizationId },
+      where: { clerkOrgId: organizationId },
     });
 
     if (!organization) {
@@ -374,7 +362,7 @@ export class UsersService {
       requesterRole !== UserRole.OWNER &&
       requesterRole !== UserRole.MANAGER
     ) {
-      if (targetUser.auth0UserId !== requesterAuth0Id) {
+      if (targetUser.clerkUserId !== requesterClerkId) {
         throw new ForbiddenException(
           'You can only view your own branch assignments',
         );
@@ -415,9 +403,9 @@ export class UsersService {
   /**
    * Get current user's branch assignments
    */
-  async getCurrentUserBranches(auth0UserId: string, organizationId: string) {
+  async getCurrentUserBranches(clerkUserId: string, organizationId: string) {
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: organizationId },
+      where: { clerkOrgId: organizationId },
     });
 
     if (!organization) {
@@ -425,7 +413,7 @@ export class UsersService {
     }
 
     const user = await this.prismaService.user.findUnique({
-      where: { auth0UserId },
+      where: { clerkUserId },
     });
 
     if (!user || user.organizationId !== organization.id) {
@@ -464,12 +452,12 @@ export class UsersService {
   }
 
   /**
-   * Get user's branch assignments by Auth0 ID
-   * Owners and Managers can view any user's assignments using Auth0 ID
+   * Get user's branch assignments by Clerk ID
+   * Owners and Managers can view any user's assignments using Clerk ID
    */
-  async getUserBranchesByAuth0Id(auth0UserId: string, organizationId: string) {
+  async getUserBranchesByClerkId(clerkUserId: string, organizationId: string) {
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: organizationId },
+      where: { clerkOrgId: organizationId },
     });
 
     if (!organization) {
@@ -478,7 +466,7 @@ export class UsersService {
 
     const user = await this.prismaService.user.findFirst({
       where: {
-        auth0UserId,
+        clerkUserId,
         organizationId: organization.id,
       },
     });
@@ -508,7 +496,7 @@ export class UsersService {
 
     return {
       userId: user.id,
-      auth0UserId: user.auth0UserId,
+      clerkUserId: user.clerkUserId,
       userEmail: user.email,
       userName: user.name,
       userRole: user.role,
@@ -529,7 +517,7 @@ export class UsersService {
     const { limit = 20, cursor, orderDir = 'desc' } = paginationQuery;
 
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: organizationId },
+      where: { clerkOrgId: organizationId },
     });
 
     if (!organization) {
@@ -597,7 +585,7 @@ export class UsersService {
     userId: string,
     organizationId: string,
     removerRole: UserRole,
-    removerAuth0Id: string,
+    removerClerkId: string,
   ) {
     // Only Owners can remove users
     if (removerRole !== UserRole.OWNER) {
@@ -605,7 +593,7 @@ export class UsersService {
     }
 
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: organizationId },
+      where: { clerkOrgId: organizationId },
     });
 
     if (!organization) {
@@ -624,14 +612,14 @@ export class UsersService {
     }
 
     // Prevent self-removal
-    if (user.auth0UserId === removerAuth0Id) {
+    if (user.clerkUserId === removerClerkId) {
       throw new BadRequestException('You cannot remove yourself');
     }
 
-    // Remove from Auth0 organization
-    await this.auth0ManagementService.removeMemberFromOrganization(
+    // Remove from Clerk organization
+    await this.clerkManagementService.removeMemberFromOrganization(
       organizationId,
-      user.auth0UserId,
+      user.clerkUserId ?? '',
     );
 
     // Delete from our database (cascades to UserBranch)

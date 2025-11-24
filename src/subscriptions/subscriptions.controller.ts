@@ -23,7 +23,7 @@ import {
 import { CurrentUser, Roles } from '../auth/decorators';
 import { requiresOrganization } from '../auth/decorators/requires-organization.decorator';
 import { UserRole } from '../auth/enums/user-role.enum';
-import { Auth0Guard, RolesGuard } from '../auth/guards';
+import { ClerkGuard, RolesGuard } from '../auth/guards';
 import type { UserPayload } from '../auth/interfaces';
 import { PlansService } from '../plans/plans.service';
 
@@ -37,7 +37,7 @@ import { SubscriptionsService } from './subscriptions.service';
 @ApiTags('Subscriptions')
 @ApiBearerAuth('Auth0')
 @Controller('subscriptions')
-@UseGuards(Auth0Guard)
+@UseGuards(ClerkGuard)
 export class SubscriptionsController {
   constructor(
     private readonly subscriptionsService: SubscriptionsService,
@@ -151,7 +151,7 @@ export class SubscriptionsController {
     return this.subscriptionsService.createSubscription(
       user.organizationId,
       {
-        auth0Id: user.auth0Id,
+        clerkUserId: user.clerkUserId,
         email: user.email,
         ...(user.name && { name: user.name }),
       },

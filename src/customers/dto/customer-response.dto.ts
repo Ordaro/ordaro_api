@@ -69,8 +69,8 @@ export class CustomerResponseDto {
   @ApiProperty({ description: 'WhatsApp opt-in' })
   whatsappOptIn!: boolean;
 
-  @ApiPropertyOptional({ description: 'Auth0 user ID (for online ordering)' })
-  auth0UserId?: string | null;
+  @ApiPropertyOptional({ description: 'Clerk user ID (for online ordering)' })
+  clerkUserId?: string | null;
 
   @ApiPropertyOptional({ description: 'Address' })
   address?: string | null;

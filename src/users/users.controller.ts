@@ -19,7 +19,7 @@ import {
 
 import { CurrentUser, Roles, requiresOrganization } from '../auth/decorators';
 import { UserRole } from '../auth/enums/user-role.enum';
-import { Auth0Guard, RolesGuard } from '../auth/guards';
+import { ClerkGuard, RolesGuard } from '../auth/guards';
 import type { UserPayload } from '../auth/interfaces';
 import { PaginationQueryDto } from '../common/dto/pagination.dto';
 
@@ -29,7 +29,7 @@ import { UsersService } from './users.service';
 @ApiTags('Users')
 @ApiBearerAuth('Auth0')
 @Controller('users')
-@UseGuards(Auth0Guard)
+@UseGuards(ClerkGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
@@ -200,7 +200,7 @@ export class UsersController {
     return this.usersService.getUserBranches(
       userId,
       user.organizationId,
-      user.auth0Id,
+      user.clerkUserId,
       user.role,
     );
   }
@@ -245,26 +245,26 @@ export class UsersController {
   getCurrentUserBranches(@CurrentUser() user: UserPayload) {
     requiresOrganization(user);
     return this.usersService.getCurrentUserBranches(
-      user.auth0Id,
+      user.clerkUserId,
       user.organizationId,
     );
   }
 
   /**
-   * Get user's branch assignments by Auth0 ID
-   * Owners and Managers can view any user's assignments using Auth0 ID
+   * Get user's branch assignments by Clerk ID
+   * Owners and Managers can view any user's assignments using Clerk ID
    */
-  @Get('auth0/:auth0UserId/branches')
+  @Get('clerk/:clerkUserId/branches')
   @UseGuards(RolesGuard)
   @Roles(UserRole.OWNER, UserRole.MANAGER)
   @ApiOperation({
-    summary: 'Get user branch assignments by Auth0 ID',
+    summary: 'Get user branch assignments by Clerk ID',
     description:
-      'Returns all branches assigned to a user identified by Auth0 ID. Owner and Manager roles only.',
+      'Returns all branches assigned to a user identified by Clerk ID. Owner and Manager roles only.',
   })
   @ApiParam({
-    name: 'auth0UserId',
-    description: 'Auth0 User ID (sub claim from JWT)',
+    name: 'clerkUserId',
+    description: 'Clerk User ID (sub claim from JWT)',
   })
   @ApiResponse({
     status: 200,
@@ -275,13 +275,13 @@ export class UsersController {
     description: 'Forbidden - Owner/Manager role required',
   })
   @ApiResponse({ status: 404, description: 'User not found' })
-  getUserBranchesByAuth0Id(
-    @Param('auth0UserId') auth0UserId: string,
+  getUserBranchesByClerkId(
+    @Param('clerkUserId') clerkUserId: string,
     @CurrentUser() user: UserPayload,
   ) {
     requiresOrganization(user);
-    return this.usersService.getUserBranchesByAuth0Id(
-      auth0UserId,
+    return this.usersService.getUserBranchesByClerkId(
+      clerkUserId,
       user.organizationId,
     );
   }
@@ -367,7 +367,7 @@ export class UsersController {
       userId,
       user.organizationId,
       user.role,
-      user.auth0Id,
+      user.clerkUserId,
     );
   }
 }

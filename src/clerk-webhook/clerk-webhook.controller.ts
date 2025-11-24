@@ -13,9 +13,9 @@ import {
 import type { RawBodyRequest } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiHeader } from '@nestjs/swagger';
 import type { Request } from 'express';
+import { UserRole } from 'generated/prisma';
 import { Webhook } from 'svix';
 
-import { UserRole } from '../auth/enums/user-role.enum';
 import { ConfigService } from '../config';
 import { PrismaService } from '../database/prisma.service';
 import {
@@ -186,7 +186,7 @@ export class ClerkWebhookController {
 
       // Organization events
       case ClerkWebhookEventType.ORGANIZATION_CREATED:
-        await this.handleOrganizationCreated({
+        this.handleOrganizationCreated({
           ...event,
           data: event.data as unknown as ClerkOrganization,
         });
@@ -256,25 +256,73 @@ export class ClerkWebhookController {
 
   /**
    * Handle user.created event
+   * Syncs user to database immediately when created in Clerk
+   * Note: User might not have an organization yet, so we create without org
+   * Organization will be assigned when membership is created
    */
-  private handleUserCreated(event: {
+  private async handleUserCreated(event: {
     object: string;
     type: ClerkWebhookEventType;
     data: ClerkUser;
-  }) {
+  }): Promise<void> {
     const user = event.data;
     const primaryEmail = user.email_addresses.find(
       (e) => e.id === user.primary_email_address_id,
     );
+    const email = primaryEmail?.email_address || '';
 
-    this.logger.log('User created in Clerk', {
+    this.logger.log('User created in Clerk - syncing to database', {
       userId: user.id,
-      email: primaryEmail?.email_address || 'no email',
+      email,
     });
 
-    // Sync user to database if needed
-    // This will be handled by JIT provisioning in the auth strategy
-    // But we can log it here for tracking
+    try {
+      // Check if user already exists
+      const existingUser = await this.prismaService.user.findUnique({
+        where: { clerkUserId: user.id },
+      });
+
+      if (existingUser) {
+        this.logger.debug('User already exists in database', {
+          userId: user.id,
+          dbUserId: existingUser.id,
+        });
+        return;
+      }
+
+      // Get user's name
+      const name =
+        user.first_name && user.last_name
+          ? `${user.first_name} ${user.last_name}`
+          : user.first_name || user.last_name || null;
+
+      // User doesn't have an organization yet when first created
+      // They'll be synced to database when:
+      // 1. They get an organization membership (via organizationMembership.created webhook) - BEST
+      // 2. They log in and JIT provisioning assigns them (fallback)
+      // 3. They create an organization (via API)
+
+      // For now, we'll log and let organizationMembership.created or JIT provisioning handle it
+      // This is safer because we don't know which organization they belong to yet
+      this.logger.log(
+        'User created - will be synced when organization membership is created',
+        {
+          userId: user.id,
+          email,
+          name,
+        },
+      );
+
+      // If you want to create users immediately, you would need to:
+      // 1. Make organizationId optional in schema, OR
+      // 2. Create a default organization for new users, OR
+      // 3. Wait for organizationMembership.created event
+    } catch (error) {
+      this.logger.error('Failed to sync user creation', {
+        userId: user.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   /**
@@ -298,7 +346,7 @@ export class ClerkWebhookController {
     // Update user in database if exists
     try {
       const dbUser = await this.prismaService.user.findUnique({
-        where: { auth0UserId: user.id }, // TODO: Change to clerkUserId after migration
+        where: { clerkUserId: user.id },
       });
 
       if (dbUser) {
@@ -340,7 +388,7 @@ export class ClerkWebhookController {
     // Note: We might want to soft delete instead of hard delete
     try {
       const dbUser = await this.prismaService.user.findUnique({
-        where: { auth0UserId: user.id }, // TODO: Change to clerkUserId after migration
+        where: { clerkUserId: user.id },
       });
 
       if (dbUser) {
@@ -361,11 +409,11 @@ export class ClerkWebhookController {
   /**
    * Handle organization.created event
    */
-  private async handleOrganizationCreated(event: {
+  private handleOrganizationCreated(event: {
     object: string;
     type: ClerkWebhookEventType;
     data: ClerkOrganization;
-  }): Promise<void> {
+  }) {
     const org = event.data;
 
     this.logger.log('Organization created in Clerk', {
@@ -377,22 +425,22 @@ export class ClerkWebhookController {
     // Organization should already be created via API
     // This webhook is for tracking/logging purposes
     // But we can verify it exists in our DB
-    try {
-      const dbOrg = await this.prismaService.organization.findUnique({
-        where: { auth0OrgId: org.id }, // TODO: Change to clerkOrgId after migration
-      });
+    // try {
+    //   const dbOrg = await this.prismaService.organization.findUnique({
+    //     where: { clerkOrgId: org.id },
+    //   });
 
-      if (!dbOrg) {
-        this.logger.warn('Organization created in Clerk but not found in DB', {
-          orgId: org.id,
-        });
-      }
-    } catch (error) {
-      this.logger.error('Failed to verify organization', {
-        orgId: org.id,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
+    //   if (!dbOrg) {
+    //     this.logger.warn('Organization created in Clerk but not found in DB', {
+    //       orgId: org.id,
+    //     });
+    //   }
+    // } catch (error) {
+    //   this.logger.error('Failed to verify organization', {
+    //     orgId: org.id,
+    //     error: error instanceof Error ? error.message : String(error),
+    //   });
+    // }
   }
 
   /**
@@ -413,7 +461,7 @@ export class ClerkWebhookController {
     // Update organization in database
     try {
       const dbOrg = await this.prismaService.organization.findUnique({
-        where: { auth0OrgId: org.id }, // TODO: Change to clerkOrgId after migration
+        where: { clerkOrgId: org.id },
       });
 
       if (dbOrg) {
@@ -461,6 +509,10 @@ export class ClerkWebhookController {
 
   /**
    * Handle organizationMembership.created event
+   * This is the BEST place to sync users to database because:
+   * 1. User now has an organization (required field)
+   * 2. We know their role in the organization
+   * 3. We can create user with all required fields
    */
   private async handleMembershipCreated(event: {
     object: string;
@@ -470,53 +522,152 @@ export class ClerkWebhookController {
     const membership = event.data;
     const userId = membership.public_user_data.user_id;
     const orgId = membership.organization.id;
+    const userEmail = membership.public_user_data.identifier;
+    const userName =
+      membership.public_user_data.first_name &&
+      membership.public_user_data.last_name
+        ? `${membership.public_user_data.first_name} ${membership.public_user_data.last_name}`
+        : membership.public_user_data.first_name ||
+          membership.public_user_data.last_name ||
+          null;
 
-    this.logger.log('Organization membership created', {
-      membershipId: membership.id,
-      userId,
-      orgId,
-      role: membership.role,
-    });
+    this.logger.log(
+      'Organization membership created - syncing user to database',
+      {
+        membershipId: membership.id,
+        userId,
+        orgId,
+        role: membership.role,
+        email: userEmail,
+      },
+    );
 
-    // Sync membership to database
-    // User should already exist (created via JIT or webhook)
     try {
-      const dbUser = await this.prismaService.user.findUnique({
-        where: { auth0UserId: userId }, // TODO: Change to clerkUserId after migration
-      });
-
       const dbOrg = await this.prismaService.organization.findUnique({
-        where: { auth0OrgId: orgId }, // TODO: Change to clerkOrgId after migration
+        where: { clerkOrgId: orgId },
       });
 
-      if (dbUser && dbOrg) {
-        // Update user's organization and role if needed
+      if (!dbOrg) {
+        this.logger.warn('Organization not found in database', {
+          orgId,
+          userId,
+        });
+        return;
+      }
+
+      // Map Clerk role to our UserRole enum
+      const role = this.mapClerkRoleToUserRole(membership.role);
+
+      // Check if user already exists
+      let dbUser = await this.prismaService.user.findUnique({
+        where: { clerkUserId: userId },
+      });
+
+      if (dbUser) {
+        // User exists - update organization and role if needed
+        const updates: {
+          organizationId?: string;
+          role?: UserRole;
+          email?: string;
+          name?: string | null;
+        } = {};
+
         if (dbUser.organizationId !== dbOrg.id) {
+          updates.organizationId = dbOrg.id;
+        }
+        const parsedRole = role;
+        if (dbUser.role !== parsedRole) {
+          updates.role = parsedRole;
+        }
+
+        if (userEmail && dbUser.email !== userEmail) {
+          updates.email = userEmail;
+        }
+
+        if (userName && dbUser.name !== userName) {
+          updates.name = userName;
+        }
+
+        if (Object.keys(updates).length > 0) {
           await this.prismaService.user.update({
             where: { id: dbUser.id },
-            data: {
-              organizationId: dbOrg.id,
-              // Role mapping from Clerk role to our enum
-              // This will be handled by role mapping logic
-            },
+            data: updates,
           });
 
-          this.logger.log('User organization updated from membership', {
+          this.logger.log('User updated from membership', {
             userId: dbUser.id,
-            orgId: dbOrg.id,
+            updates,
           });
         }
+      } else {
+        // User doesn't exist - create them
+        // This is the BEST time because we have:
+        // - Organization (required)
+        // - Role (required)
+        // - Email (required)
+        dbUser = await this.prismaService.user.create({
+          data: {
+            clerkUserId: userId,
+            email: userEmail || `user_${userId}@temp.com`, // Fallback email
+            name: userName,
+            role,
+            organizationId: dbOrg.id,
+          },
+        });
+
+        this.logger.log('User created from membership', {
+          userId: dbUser.id,
+          clerkUserId: userId,
+          orgId: dbOrg.id,
+          role,
+        });
       }
     } catch (error) {
       this.logger.error('Failed to sync membership', {
         membershipId: membership.id,
+        userId,
+        orgId,
         error: error instanceof Error ? error.message : String(error),
       });
     }
   }
 
   /**
+   * Map Clerk role to our UserRole enum
+   */
+  private mapClerkRoleToUserRole(clerkRole: string | null): UserRole {
+    if (!clerkRole) {
+      return UserRole.OWNER; // Default
+    }
+
+    const roleLower = clerkRole.toLowerCase();
+
+    // Map Clerk org roles
+    if (roleLower.includes('admin') || roleLower === 'org:admin') {
+      return UserRole.OWNER;
+    }
+
+    // Map custom roles
+    switch (roleLower) {
+      case 'owner':
+        return UserRole.OWNER;
+      case 'manager':
+        return UserRole.MANAGER;
+      case 'waiter':
+        return UserRole.WAITER;
+      case 'chef':
+        return UserRole.CHEF;
+      default:
+        this.logger.warn(
+          `Unknown Clerk role: ${clerkRole}, defaulting to OWNER`,
+        );
+        return UserRole.OWNER;
+    }
+  }
+
+  /**
    * Handle organizationMembership.updated event
+   * Updates user role when membership role changes
    */
   private async handleMembershipUpdated(event: {
     object: string;
@@ -524,9 +675,11 @@ export class ClerkWebhookController {
     data: ClerkOrganizationMembership;
   }): Promise<void> {
     const membership = event.data;
+    const userId = membership.public_user_data.user_id;
 
-    this.logger.log('Organization membership updated', {
+    this.logger.log('Organization membership updated - syncing role', {
       membershipId: membership.id,
+      userId,
       role: membership.role,
     });
 
@@ -534,17 +687,70 @@ export class ClerkWebhookController {
     try {
       const dbUser = await this.prismaService.user.findUnique({
         where: {
-          auth0UserId: membership.public_user_data.user_id, // TODO: Change to clerkUserId after migration
+          clerkUserId: userId,
         },
       });
 
       if (dbUser) {
         // Map Clerk role to our UserRole enum
-        // This will be handled by role mapping logic
-        this.logger.log('Membership role updated', {
-          userId: dbUser.id,
-          newRole: membership.role,
+        const newRole = this.mapClerkRoleToUserRole(membership.role);
+        const parsedRole = newRole;
+        if (dbUser.role !== parsedRole) {
+          await this.prismaService.user.update({
+            where: { id: dbUser.id },
+            data: { role: parsedRole },
+          });
+
+          this.logger.log('User role updated from membership', {
+            userId: dbUser.id,
+            oldRole: dbUser.role,
+            newRole: parsedRole,
+          });
+        }
+      } else {
+        // User doesn't exist - this shouldn't happen if membership.created worked
+        // But we can create them here as fallback
+        this.logger.warn(
+          'User not found when updating membership - creating user',
+          {
+            userId,
+            orgId: membership.organization.id,
+          },
+        );
+
+        // Try to create user (similar to handleMembershipCreated)
+        const dbOrg = await this.prismaService.organization.findUnique({
+          where: { clerkOrgId: membership.organization.id },
         });
+
+        if (dbOrg) {
+          const userEmail = membership.public_user_data.identifier;
+          const userName =
+            membership.public_user_data.first_name &&
+            membership.public_user_data.last_name
+              ? `${membership.public_user_data.first_name} ${membership.public_user_data.last_name}`
+              : membership.public_user_data.first_name ||
+                membership.public_user_data.last_name ||
+                null;
+
+          const role = this.mapClerkRoleToUserRole(membership.role);
+
+          await this.prismaService.user.create({
+            data: {
+              clerkUserId: userId,
+              email: userEmail || `user_${userId}@temp.com`,
+              name: userName,
+              role,
+              organizationId: dbOrg.id,
+            },
+          });
+
+          this.logger.log('User created from membership update (fallback)', {
+            userId,
+            orgId: dbOrg.id,
+            role,
+          });
+        }
       }
     } catch (error) {
       this.logger.error('Failed to sync membership update', {
@@ -595,7 +801,7 @@ export class ClerkWebhookController {
     // Find or create invitation in database
     try {
       const dbOrg = await this.prismaService.organization.findUnique({
-        where: { auth0OrgId: invitation.organization.id }, // TODO: Change to clerkOrgId after migration
+        where: { clerkOrgId: invitation.organization.id },
       });
 
       if (dbOrg) {
@@ -615,7 +821,7 @@ export class ClerkWebhookController {
           // For now, we'll create without branchId and update later
           await this.prismaService.invitation.create({
             data: {
-              auth0InvitationId: invitation.id, // TODO: Change to clerkInvitationId after migration
+              clerkInvitationId: invitation.id,
               email: invitation.email_address,
               role: this.mapClerkRoleToUserRole(invitation.role),
               organizationId: dbOrg.id,
@@ -656,7 +862,7 @@ export class ClerkWebhookController {
     try {
       const dbInvitation = await this.prismaService.invitation.findFirst({
         where: {
-          auth0InvitationId: invitation.id, // TODO: Change to clerkInvitationId after migration
+          clerkInvitationId: invitation.id,
         },
       });
 
@@ -700,7 +906,7 @@ export class ClerkWebhookController {
     try {
       const dbInvitation = await this.prismaService.invitation.findFirst({
         where: {
-          auth0InvitationId: invitation.id, // TODO: Change to clerkInvitationId after migration
+          clerkInvitationId: invitation.id,
         },
       });
 
@@ -722,21 +928,6 @@ export class ClerkWebhookController {
         error: error instanceof Error ? error.message : String(error),
       });
     }
-  }
-
-  /**
-   * Map Clerk role to our UserRole enum
-   */
-  private mapClerkRoleToUserRole(clerkRole: string): UserRole {
-    // Map Clerk roles to our enum values
-    const roleMap: Record<string, UserRole> = {
-      owner: UserRole.OWNER,
-      manager: UserRole.MANAGER,
-      waiter: UserRole.WAITER,
-      chef: UserRole.CHEF,
-    };
-
-    return roleMap[clerkRole.toLowerCase()] || UserRole.WAITER;
   }
 
   /**

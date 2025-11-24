@@ -18,7 +18,7 @@ import {
 import { Prisma } from '../../generated/prisma';
 import { CurrentUser, Roles, requiresOrganization } from '../auth/decorators';
 import { UserRole } from '../auth/enums/user-role.enum';
-import { Auth0Guard, RolesGuard } from '../auth/guards';
+import { ClerkGuard, RolesGuard } from '../auth/guards';
 import type { UserPayload } from '../auth/interfaces';
 import { PrismaService } from '../database/prisma.service';
 
@@ -28,7 +28,7 @@ import { InventoryService } from './inventory.service';
 @ApiTags('Inventory')
 @ApiBearerAuth('Auth0')
 @Controller('inventory')
-@UseGuards(Auth0Guard)
+@UseGuards(ClerkGuard)
 export class InventoryController {
   constructor(
     private readonly inventoryService: InventoryService,
@@ -154,7 +154,7 @@ export class InventoryController {
   ) {
     requiresOrganization(user);
     const organization = await this.prismaService.organization.findUnique({
-      where: { auth0OrgId: user.organizationId },
+      where: { clerkOrgId: user.organizationId },
     });
 
     if (!organization) {

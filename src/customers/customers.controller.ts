@@ -18,7 +18,7 @@ import {
 
 import { CurrentUser, Roles, requiresOrganization } from '../auth/decorators';
 import { UserRole } from '../auth/enums/user-role.enum';
-import { Auth0Guard, RolesGuard } from '../auth/guards';
+import { ClerkGuard, RolesGuard } from '../auth/guards';
 import type { UserPayload } from '../auth/interfaces';
 import { PaginationQueryDto } from '../common/dto/pagination.dto';
 
@@ -37,7 +37,7 @@ import { ConsentService } from './services/consent.service';
 @ApiTags('Customers')
 @ApiBearerAuth('Auth0')
 @Controller('customers')
-@UseGuards(Auth0Guard)
+@UseGuards(ClerkGuard)
 export class CustomersController {
   constructor(
     private readonly customersService: CustomersService,

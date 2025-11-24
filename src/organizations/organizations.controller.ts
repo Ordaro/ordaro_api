@@ -18,7 +18,7 @@ import {
 
 import { CurrentUser, Roles } from '../auth/decorators';
 import { UserRole } from '../auth/enums/user-role.enum';
-import { Auth0Guard, RolesGuard } from '../auth/guards';
+import { ClerkGuard, RolesGuard } from '../auth/guards';
 import type { UserPayload } from '../auth/interfaces';
 
 import { CreateOrganizationDto, UpdateOrganizationDto } from './dto';
@@ -27,7 +27,7 @@ import { OrganizationsService } from './organizations.service';
 @ApiTags('Organizations')
 @ApiBearerAuth('Auth0')
 @Controller('organizations')
-@UseGuards(Auth0Guard)
+@UseGuards(ClerkGuard)
 export class OrganizationsController {
   constructor(private readonly organizationsService: OrganizationsService) {}
 
@@ -60,7 +60,7 @@ export class OrganizationsController {
 
     return this.organizationsService.create(
       createOrganizationDto,
-      user.auth0Id,
+      user.clerkUserId,
       user.email,
       user.name,
     );
@@ -70,7 +70,7 @@ export class OrganizationsController {
    * Get Member organizations
    */
   @Get('my-organizations')
-  @UseGuards(Auth0Guard)
+  @UseGuards(ClerkGuard)
   @ApiOperation({
     summary: 'Get user Organizations',
     description: 'Get organizations that the authenticated user belongs to',
@@ -103,7 +103,7 @@ export class OrganizationsController {
   })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   async findOrgs(@CurrentUser() userPayload: UserPayload) {
-    return await this.organizationsService.findOrgs(userPayload.auth0Id);
+    return await this.organizationsService.findOrgs(userPayload.clerkUserId);
   }
 
   /**
@@ -168,7 +168,7 @@ export class OrganizationsController {
   ) {
     const organization = await this.organizationsService.findOne(id);
 
-    if (organization.auth0OrgId !== user.organizationId) {
+    if (organization.clerkOrgId !== user.organizationId) {
       throw new BadRequestException(
         'You do not have access to this organization',
       );

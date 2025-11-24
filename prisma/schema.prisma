@@ -27,7 +27,7 @@ enum UserRole {
 
 model Organization {
   id         String   @id @default(uuid())
-  auth0OrgId String   @unique
+  clerkOrgId String?  @unique
   name       String
   slug       String   @unique
   logoUrl    String?
@@ -84,7 +84,7 @@ model Branch {
 
 model User {
   id             String   @id @default(uuid())
-  auth0UserId    String   @unique
+  clerkUserId    String?  @unique
   email          String   @unique
   name           String?
   phone          String?
@@ -121,7 +121,7 @@ model UserBranch {
 
 model Invitation {
   id                String           @id @default(uuid())
-  auth0InvitationId String?          @unique
+  clerkInvitationId String?          @unique
   email             String
   role              UserRole
   status            InvitationStatus @default(PENDING)
@@ -734,8 +734,8 @@ model TransactionCustomer {
   lastName      String?
   fullName      String?  // Fallback if firstName/lastName not available
   
-  // Auth0 for online ordering
-  auth0UserId   String?  @unique
+  // Clerk for online ordering
+  clerkUserId   String?  @unique
   emailVerified Boolean  @default(false)
   phoneVerified Boolean  @default(false)
   
@@ -761,7 +761,7 @@ model TransactionCustomer {
   
   @@index([email])
   @@index([phone])
-  @@index([auth0UserId])
+  @@index([clerkUserId])
   @@map("transaction_customers")
 }
 

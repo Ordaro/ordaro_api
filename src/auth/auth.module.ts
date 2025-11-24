@@ -6,16 +6,17 @@ import { PrismaModule } from '../database/prisma.module';
 
 import { AuthController } from './auth.controller';
 import { Auth0ManagementService } from './services/auth0-management.service';
-import { Auth0Strategy } from './strategies/auth0.strategy';
+import { ClerkManagementService } from './services/clerk-management.service';
+import { ClerkStrategy } from './strategies/clerk.strategy';
 
 @Module({
   imports: [
-    PassportModule.register({ defaultStrategy: 'auth0' }),
+    PassportModule.register({ defaultStrategy: 'clerk' }),
     PrismaModule,
     ConfigModule,
   ],
-  providers: [Auth0Strategy, Auth0ManagementService],
+  providers: [Auth0ManagementService, ClerkStrategy, ClerkManagementService],
   controllers: [AuthController],
-  exports: [Auth0ManagementService, PassportModule],
+  exports: [ClerkManagementService, PassportModule],
 })
 export class AuthModule {}

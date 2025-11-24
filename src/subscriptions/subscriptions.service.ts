@@ -194,7 +194,7 @@ export class SubscriptionsService {
    */
   async createSubscription(
     organizationId: string,
-    _user: { auth0Id: string; email: string; name?: string },
+    _user: { clerkUserId: string; email: string; name?: string },
     dto: CreateSubscriptionDto,
   ): Promise<SubscriptionResponseDto> {
     // Verify organization exists

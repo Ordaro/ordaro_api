@@ -40,7 +40,13 @@ export const env = {
   AUTH0_CUSTOM_CLAIMS_NAMESPACE: process.env['AUTH0_CUSTOM_CLAIMS_NAMESPACE'],
 
   // Clerk
+  CLERK_SECRET_KEY: process.env['CLERK_SECRET_KEY'],
+  CLERK_PUBLISHABLE_KEY: process.env['CLERK_PUBLISHABLE_KEY'],
   CLERK_SIGNING_SECRET: process.env['CLERK_SIGNING_SECRET'],
+  CLERK_ISSUER_URL: process.env['CLERK_ISSUER_URL'],
+  CLERK_JWT_AUDIENCE: process.env['CLERK_JWT_AUDIENCE'],
+  CLERK_JWT_TEMPLATE_ID: process.env['CLERK_JWT_TEMPLATE_ID'],
+  CLERK_FRONTEND_API: process.env['CLERK_FRONTEND_API'],
 
   // API
   API_PREFIX: process.env['API_PREFIX'],
@@ -105,7 +111,7 @@ export const env = {
  * Validate required environment variables
  */
 export function validateEnv(): void {
-  const required = ['DATABASE_URL', 'AUTH0_DOMAIN', 'AUTH0_AUDIENCE'];
+  const required = ['DATABASE_URL', 'CLERK_SECRET_KEY', 'CLERK_SIGNING_SECRET'];
 
   const missing: string[] = [];
 

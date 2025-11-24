@@ -20,7 +20,7 @@ import {
 import { PrismaService } from '../database/prisma.service';
 
 import { CurrentUser } from './decorators';
-import { Auth0Guard } from './guards';
+import { ClerkGuard } from './guards';
 import type { UserPayload } from './interfaces';
 
 @ApiTags('Auth')
@@ -37,7 +37,7 @@ export class AuthController {
    * Get current authenticated user profile with branches
    */
   @Get('me')
-  @UseGuards(Auth0Guard)
+  @UseGuards(ClerkGuard)
   @ApiBearerAuth('Auth0')
   @ApiOperation({
     summary: 'Get current user profile',
@@ -49,7 +49,7 @@ export class AuthController {
     description: 'User profile retrieved successfully',
     schema: {
       example: {
-        auth0Id: 'google-oauth2|101165214874327626596',
+        clerkUserId: 'user_2abc123xyz',
         email: 'user@example.com',
         name: 'John Doe',
         organizationId: 'org_xxxxx',
@@ -71,18 +71,20 @@ export class AuthController {
   })
   async getCurrentUser(@CurrentUser() user: UserPayload) {
     this.logger.debug('User payload from JWT:', {
-      auth0Id: user.auth0Id,
+      clerkUserId: user.clerkUserId,
       role: user.role,
       organizationId: user.organizationId,
     });
 
     if (!user.role) {
-      this.logger.warn('User has no role assigned', { userId: user.auth0Id });
+      this.logger.warn('User has no role assigned', {
+        userId: user.clerkUserId,
+      });
     }
 
     // Fetch user from database with branches
     const dbUser = await this.prismaService.user.findUnique({
-      where: { auth0UserId: user.auth0Id },
+      where: { clerkUserId: user.clerkUserId },
       include: {
         organization: {
           select: {
@@ -110,12 +112,12 @@ export class AuthController {
 
     if (!dbUser) {
       this.logger.warn('User not found in database during /me call', {
-        userId: user.auth0Id,
+        userId: user.clerkUserId,
         email: user.email,
       });
 
       return {
-        auth0Id: user.auth0Id,
+        clerkUserId: user.clerkUserId,
         email: user.email,
         name: user.name,
         role: user.role,
@@ -127,7 +129,7 @@ export class AuthController {
 
     return {
       id: dbUser.id,
-      auth0Id: dbUser.auth0UserId,
+      clerkUserId: dbUser.clerkUserId,
       email: dbUser.email,
       name: dbUser.name,
       phone: dbUser.phone,
@@ -193,7 +195,7 @@ export class AuthController {
     const userBranches = await this.prismaService.userBranch.findMany({
       where: {
         user: {
-          auth0UserId: userId,
+          clerkUserId: userId,
         },
       },
       select: {

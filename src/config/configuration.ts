@@ -35,7 +35,7 @@ export default registerAs('app', () => {
       db: parseInt(process.env['REDIS_DB'] || '0', 10),
     },
 
-    // Auth0
+    // Auth0 (legacy)
     auth0: {
       domain: process.env['AUTH0_DOMAIN'],
       tenantDomain: process.env['AUTH0_TENANT_DOMAIN'], // For Management API
@@ -62,7 +62,13 @@ export default registerAs('app', () => {
 
     // Clerk
     clerk: {
+      secretKey: process.env['CLERK_SECRET_KEY'],
+      publishableKey: process.env['CLERK_PUBLISHABLE_KEY'],
       signingSecret: process.env['CLERK_SIGNING_SECRET'],
+      issuer: process.env['CLERK_ISSUER_URL'],
+      audience: process.env['CLERK_JWT_AUDIENCE'],
+      jwtTemplateId: process.env['CLERK_JWT_TEMPLATE_ID'],
+      frontendApi: process.env['CLERK_FRONTEND_API'],
     },
 
     // API
